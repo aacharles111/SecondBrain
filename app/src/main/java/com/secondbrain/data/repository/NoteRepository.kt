@@ -6,6 +6,7 @@ import com.secondbrain.data.model.Note
 import com.secondbrain.util.MarkdownUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import java.util.Date
 import java.util.UUID
 import javax.inject.Inject
@@ -72,7 +73,7 @@ class NoteRepository @Inject constructor(
 
     suspend fun deleteNoteById(id: String) {
         // Get the note first to get the file path
-        val note = noteDao.getNoteById(id).value
+        val note = noteDao.getNoteById(id).firstOrNull()
         if (note != null) {
             deleteNote(note)
         } else {
