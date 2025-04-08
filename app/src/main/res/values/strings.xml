@@ -1,0 +1,74 @@
+<resources>
+    <string name="app_name">Second Brain</string>
+    
+    <!-- Navigation -->
+    <string name="nav_notes">Notes</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_settings">Settings</string>
+    
+    <!-- Note Actions -->
+    <string name="action_new_note">New Note</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_summarize">Summarize</string>
+    
+    <!-- Dialogs -->
+    <string name="dialog_delete_title">Delete Note</string>
+    <string name="dialog_delete_message">Are you sure you want to delete this note? This action cannot be undone.</string>
+    <string name="dialog_confirm">Confirm</string>
+    <string name="dialog_cancel">Cancel</string>
+    
+    <!-- Settings -->
+    <string name="settings_ai_integration">AI Integration</string>
+    <string name="settings_storage">Storage</string>
+    <string name="settings_storage_management">Storage Management</string>
+    <string name="settings_theme">Theme</string>
+    
+    <!-- AI Integration -->
+    <string name="ai_provider_openai">OpenAI (ChatGPT)</string>
+    <string name="ai_provider_gemini">Google (Gemini)</string>
+    <string name="ai_provider_claude">Anthropic (Claude)</string>
+    <string name="ai_provider_perplexity">Perplexity</string>
+    <string name="ai_provider_deepseek">Deepseek</string>
+    <string name="ai_provider_openrouter">OpenRouter</string>
+    <string name="ai_provider_grok">Grok (xAI)</string>
+    <string name="ai_api_key">API Key</string>
+    <string name="ai_default_provider">Default AI Provider</string>
+    <string name="ai_get_key">Get API Key</string>
+    
+    <!-- Storage -->
+    <string name="storage_local">Local Storage</string>
+    <string name="storage_gdrive">Google Drive</string>
+    <string name="storage_onedrive">Microsoft OneDrive</string>
+    <string name="storage_sync_scope">Sync Scope</string>
+    <string name="storage_sync_md_only">Markdown Files Only</string>
+    <string name="storage_sync_all">All Data</string>
+    <string name="storage_connect">Connect</string>
+    <string name="storage_disconnect">Disconnect</string>
+    
+    <!-- Storage Management -->
+    <string name="storage_delete_originals">Delete Original Files After Summarization</string>
+    <string name="storage_delete_by_age">Delete Originals Older Than…</string>
+    <string name="storage_delete_by_type">Delete Originals By Type</string>
+    <string name="storage_age_1_week">1 Week</string>
+    <string name="storage_age_1_month">1 Month</string>
+    <string name="storage_age_3_months">3 Months</string>
+    <string name="storage_age_all">All</string>
+    
+    <!-- Placeholders -->
+    <string name="placeholder_note_title">Note Title</string>
+    <string name="placeholder_note_content">Note Content</string>
+    <string name="placeholder_search">Search notes…</string>
+    
+    <!-- Messages -->
+    <string name="msg_note_saved">Note saved</string>
+    <string name="msg_note_deleted">Note deleted</string>
+    <string name="msg_summarizing">Summarizing content…</string>
+    <string name="msg_api_key_required">API key is required</string>
+    <string name="msg_invalid_api_key">Invalid API key</string>
+    <string name="msg_network_error">Network error</string>
+    <string name="msg_quota_exceeded">API quota exceeded</string>
+    <string name="msg_no_results">No results found</string>
+</resources>
