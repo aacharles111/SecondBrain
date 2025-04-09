@@ -18,8 +18,20 @@ import dagger.hilt.processor.internal.definecomponent.codegen._dagger_hilt_andro
 import dagger.hilt.processor.internal.definecomponent.codegen._dagger_hilt_android_internal_builders_ViewWithFragmentComponentBuilder;
 import dagger.hilt.processor.internal.definecomponent.codegen._dagger_hilt_components_SingletonComponent;
 import hilt_aggregated_deps._com_secondbrain_SecondBrainApp_GeneratedInjector;
+import hilt_aggregated_deps._com_secondbrain_di_AiModule;
 import hilt_aggregated_deps._com_secondbrain_di_AppModule;
+import hilt_aggregated_deps._com_secondbrain_di_WorkerModule;
 import hilt_aggregated_deps._com_secondbrain_ui_MainActivity_GeneratedInjector;
+import hilt_aggregated_deps._com_secondbrain_ui_card_CreateCardActivity_GeneratedInjector;
+import hilt_aggregated_deps._com_secondbrain_ui_card_CreateCardViewModel_HiltModules_BindsModule;
+import hilt_aggregated_deps._com_secondbrain_ui_card_CreateCardViewModel_HiltModules_KeyModule;
+import hilt_aggregated_deps._com_secondbrain_ui_card_SummaryReviewActivity_GeneratedInjector;
+import hilt_aggregated_deps._com_secondbrain_ui_card_SummaryReviewViewModel_HiltModules_BindsModule;
+import hilt_aggregated_deps._com_secondbrain_ui_card_SummaryReviewViewModel_HiltModules_KeyModule;
+import hilt_aggregated_deps._com_secondbrain_ui_home_HomeViewModel_HiltModules_BindsModule;
+import hilt_aggregated_deps._com_secondbrain_ui_home_HomeViewModel_HiltModules_KeyModule;
+import hilt_aggregated_deps._com_secondbrain_ui_knowledge_KnowledgeGraphViewModel_HiltModules_BindsModule;
+import hilt_aggregated_deps._com_secondbrain_ui_knowledge_KnowledgeGraphViewModel_HiltModules_KeyModule;
 import hilt_aggregated_deps._com_secondbrain_ui_notes_NoteDetailViewModel_HiltModules_BindsModule;
 import hilt_aggregated_deps._com_secondbrain_ui_notes_NoteDetailViewModel_HiltModules_KeyModule;
 import hilt_aggregated_deps._com_secondbrain_ui_notes_NoteEditViewModel_HiltModules_BindsModule;
@@ -28,6 +40,10 @@ import hilt_aggregated_deps._com_secondbrain_ui_notes_NoteListViewModel_HiltModu
 import hilt_aggregated_deps._com_secondbrain_ui_notes_NoteListViewModel_HiltModules_KeyModule;
 import hilt_aggregated_deps._com_secondbrain_ui_search_SearchViewModel_HiltModules_BindsModule;
 import hilt_aggregated_deps._com_secondbrain_ui_search_SearchViewModel_HiltModules_KeyModule;
+import hilt_aggregated_deps._com_secondbrain_ui_settings_AiSettingsViewModel_HiltModules_BindsModule;
+import hilt_aggregated_deps._com_secondbrain_ui_settings_AiSettingsViewModel_HiltModules_KeyModule;
+import hilt_aggregated_deps._com_secondbrain_ui_settings_OpenRouterViewModel_HiltModules_BindsModule;
+import hilt_aggregated_deps._com_secondbrain_ui_settings_OpenRouterViewModel_HiltModules_KeyModule;
 import hilt_aggregated_deps._com_secondbrain_ui_settings_SettingsViewModel_HiltModules_BindsModule;
 import hilt_aggregated_deps._com_secondbrain_ui_settings_SettingsViewModel_HiltModules_KeyModule;
 import hilt_aggregated_deps._dagger_hilt_android_flags_FragmentGetContextFix_FragmentGetContextFixEntryPoint;
@@ -71,8 +87,20 @@ import hilt_aggregated_deps._dagger_hilt_android_internal_modules_HiltWrapper_Ac
     },
     aggregatedDeps = {
         _com_secondbrain_SecondBrainApp_GeneratedInjector.class,
+        _com_secondbrain_di_AiModule.class,
         _com_secondbrain_di_AppModule.class,
+        _com_secondbrain_di_WorkerModule.class,
         _com_secondbrain_ui_MainActivity_GeneratedInjector.class,
+        _com_secondbrain_ui_card_CreateCardActivity_GeneratedInjector.class,
+        _com_secondbrain_ui_card_CreateCardViewModel_HiltModules_BindsModule.class,
+        _com_secondbrain_ui_card_CreateCardViewModel_HiltModules_KeyModule.class,
+        _com_secondbrain_ui_card_SummaryReviewActivity_GeneratedInjector.class,
+        _com_secondbrain_ui_card_SummaryReviewViewModel_HiltModules_BindsModule.class,
+        _com_secondbrain_ui_card_SummaryReviewViewModel_HiltModules_KeyModule.class,
+        _com_secondbrain_ui_home_HomeViewModel_HiltModules_BindsModule.class,
+        _com_secondbrain_ui_home_HomeViewModel_HiltModules_KeyModule.class,
+        _com_secondbrain_ui_knowledge_KnowledgeGraphViewModel_HiltModules_BindsModule.class,
+        _com_secondbrain_ui_knowledge_KnowledgeGraphViewModel_HiltModules_KeyModule.class,
         _com_secondbrain_ui_notes_NoteDetailViewModel_HiltModules_BindsModule.class,
         _com_secondbrain_ui_notes_NoteDetailViewModel_HiltModules_KeyModule.class,
         _com_secondbrain_ui_notes_NoteEditViewModel_HiltModules_BindsModule.class,
@@ -81,6 +109,10 @@ import hilt_aggregated_deps._dagger_hilt_android_internal_modules_HiltWrapper_Ac
         _com_secondbrain_ui_notes_NoteListViewModel_HiltModules_KeyModule.class,
         _com_secondbrain_ui_search_SearchViewModel_HiltModules_BindsModule.class,
         _com_secondbrain_ui_search_SearchViewModel_HiltModules_KeyModule.class,
+        _com_secondbrain_ui_settings_AiSettingsViewModel_HiltModules_BindsModule.class,
+        _com_secondbrain_ui_settings_AiSettingsViewModel_HiltModules_KeyModule.class,
+        _com_secondbrain_ui_settings_OpenRouterViewModel_HiltModules_BindsModule.class,
+        _com_secondbrain_ui_settings_OpenRouterViewModel_HiltModules_KeyModule.class,
         _com_secondbrain_ui_settings_SettingsViewModel_HiltModules_BindsModule.class,
         _com_secondbrain_ui_settings_SettingsViewModel_HiltModules_KeyModule.class,
         _dagger_hilt_android_flags_FragmentGetContextFix_FragmentGetContextFixEntryPoint.class,

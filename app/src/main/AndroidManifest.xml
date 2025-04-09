@@ -27,6 +27,16 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.card.CreateCardActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SecondBrain" />
+
+        <activity
+            android:name=".ui.card.SummaryReviewActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SecondBrain" />
     </application>
 
 </manifest>

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -47,7 +48,8 @@ import dev.jeziellago.compose.markdowntext.MarkdownText
 @Composable
 fun NoteDetailScreen(
     navController: NavController,
-    viewModel: NoteDetailViewModel = hiltViewModel()
+    viewModel: NoteDetailViewModel = hiltViewModel(),
+    onNavigateToKnowledgeGraph: (String) -> Unit = {}
 ) {
     val noteState by viewModel.noteState.collectAsState()
     val backlinksState by viewModel.backlinksState.collectAsState()
@@ -77,8 +79,20 @@ fun NoteDetailScreen(
                 },
                 actions = {
                     if (noteState is NoteDetailState.Success) {
+                        val note = (noteState as NoteDetailState.Success).note
+
+                        // Knowledge Graph button
                         IconButton(onClick = {
-                            val note = (noteState as NoteDetailState.Success).note
+                            onNavigateToKnowledgeGraph(note.id)
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Knowledge Graph"
+                            )
+                        }
+
+                        // Edit button
+                        IconButton(onClick = {
                             navController.navigate("note/edit/${note.id}")
                         }) {
                             Icon(
@@ -86,6 +100,8 @@ fun NoteDetailScreen(
                                 contentDescription = stringResource(R.string.action_edit)
                             )
                         }
+
+                        // Delete button
                         IconButton(onClick = { showDeleteDialog = true }) {
                             Icon(
                                 imageVector = Icons.Default.Delete,

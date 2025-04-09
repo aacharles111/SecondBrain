@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.secondbrain.app-mergeReleaseResources-69:/values-h320dp-port-v13/values-h320dp-port-v13.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\Charles\\.gradle\\caches\\8.9\\transforms\\f32f92617dfb870ba65150d7ba2220bf\\transformed\\material-1.11.0\\res\\values-h320dp-port-v13\\values-h320dp-port-v13.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "63",
+                        "endOffsets": "114"
+                    }
+                }
+            ]
+        }
+    ]
+}

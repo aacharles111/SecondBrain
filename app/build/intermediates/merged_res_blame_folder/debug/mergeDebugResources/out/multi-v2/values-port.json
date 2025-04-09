@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.secondbrain.app-mergeDebugResources-71:/values-port/values-port.xml",
+            "outputFile": "com.secondbrain.app-mergeDebugResources-80:/values-port/values-port.xml",
             "map": [
                 {
                     "source": "C:\\Users\\Charles\\.gradle\\caches\\8.9\\transforms\\194c14c3c4de2c29b74dbcfa42fe5cd3\\transformed\\appcompat-1.6.1\\res\\values-port\\values-port.xml",

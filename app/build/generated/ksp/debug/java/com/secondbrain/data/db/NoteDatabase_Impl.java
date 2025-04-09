@@ -28,20 +28,24 @@ import javax.annotation.processing.Generated;
 public final class NoteDatabase_Impl extends NoteDatabase {
   private volatile NoteDao _noteDao;
 
+  private volatile CardDao _cardDao;
+
   @Override
   @NonNull
   protected SupportSQLiteOpenHelper createOpenHelper(@NonNull final DatabaseConfiguration config) {
-    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(1) {
+    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(2) {
       @Override
       public void createAllTables(@NonNull final SupportSQLiteDatabase db) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `notes` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `filePath` TEXT, `sourceUrl` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `tags` TEXT NOT NULL, PRIMARY KEY(`id`))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `cards` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `summary` TEXT NOT NULL, `type` TEXT NOT NULL, `source` TEXT NOT NULL, `tags` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `language` TEXT NOT NULL, `aiModel` TEXT NOT NULL, `summaryType` TEXT NOT NULL, `thumbnailUrl` TEXT, `pageCount` INTEGER, PRIMARY KEY(`id`))");
         db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)");
-        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '26c3000e157b388e314b2009ed296392')");
+        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a7f818d00799f5effcf1521062822fec')");
       }
 
       @Override
       public void dropAllTables(@NonNull final SupportSQLiteDatabase db) {
         db.execSQL("DROP TABLE IF EXISTS `notes`");
+        db.execSQL("DROP TABLE IF EXISTS `cards`");
         final List<? extends RoomDatabase.Callback> _callbacks = mCallbacks;
         if (_callbacks != null) {
           for (RoomDatabase.Callback _callback : _callbacks) {
@@ -103,9 +107,33 @@ public final class NoteDatabase_Impl extends NoteDatabase {
                   + " Expected:\n" + _infoNotes + "\n"
                   + " Found:\n" + _existingNotes);
         }
+        final HashMap<String, TableInfo.Column> _columnsCards = new HashMap<String, TableInfo.Column>(14);
+        _columnsCards.put("id", new TableInfo.Column("id", "TEXT", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("title", new TableInfo.Column("title", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("content", new TableInfo.Column("content", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("summary", new TableInfo.Column("summary", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("type", new TableInfo.Column("type", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("source", new TableInfo.Column("source", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("tags", new TableInfo.Column("tags", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("createdAt", new TableInfo.Column("createdAt", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("updatedAt", new TableInfo.Column("updatedAt", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("language", new TableInfo.Column("language", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("aiModel", new TableInfo.Column("aiModel", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("summaryType", new TableInfo.Column("summaryType", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("thumbnailUrl", new TableInfo.Column("thumbnailUrl", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("pageCount", new TableInfo.Column("pageCount", "INTEGER", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        final HashSet<TableInfo.ForeignKey> _foreignKeysCards = new HashSet<TableInfo.ForeignKey>(0);
+        final HashSet<TableInfo.Index> _indicesCards = new HashSet<TableInfo.Index>(0);
+        final TableInfo _infoCards = new TableInfo("cards", _columnsCards, _foreignKeysCards, _indicesCards);
+        final TableInfo _existingCards = TableInfo.read(db, "cards");
+        if (!_infoCards.equals(_existingCards)) {
+          return new RoomOpenHelper.ValidationResult(false, "cards(com.secondbrain.data.model.Card).\n"
+                  + " Expected:\n" + _infoCards + "\n"
+                  + " Found:\n" + _existingCards);
+        }
         return new RoomOpenHelper.ValidationResult(true, null);
       }
-    }, "26c3000e157b388e314b2009ed296392", "115ac7ee51d78d512e41e48b19d7d3a8");
+    }, "a7f818d00799f5effcf1521062822fec", "0e6d6cc641467f913249d321ca938a65");
     final SupportSQLiteOpenHelper.Configuration _sqliteConfig = SupportSQLiteOpenHelper.Configuration.builder(config.context).name(config.name).callback(_openCallback).build();
     final SupportSQLiteOpenHelper _helper = config.sqliteOpenHelperFactory.create(_sqliteConfig);
     return _helper;
@@ -116,7 +144,7 @@ public final class NoteDatabase_Impl extends NoteDatabase {
   protected InvalidationTracker createInvalidationTracker() {
     final HashMap<String, String> _shadowTablesMap = new HashMap<String, String>(0);
     final HashMap<String, Set<String>> _viewTables = new HashMap<String, Set<String>>(0);
-    return new InvalidationTracker(this, _shadowTablesMap, _viewTables, "notes");
+    return new InvalidationTracker(this, _shadowTablesMap, _viewTables, "notes","cards");
   }
 
   @Override
@@ -126,6 +154,7 @@ public final class NoteDatabase_Impl extends NoteDatabase {
     try {
       super.beginTransaction();
       _db.execSQL("DELETE FROM `notes`");
+      _db.execSQL("DELETE FROM `cards`");
       super.setTransactionSuccessful();
     } finally {
       super.endTransaction();
@@ -141,6 +170,7 @@ public final class NoteDatabase_Impl extends NoteDatabase {
   protected Map<Class<?>, List<Class<?>>> getRequiredTypeConverters() {
     final HashMap<Class<?>, List<Class<?>>> _typeConvertersMap = new HashMap<Class<?>, List<Class<?>>>();
     _typeConvertersMap.put(NoteDao.class, NoteDao_Impl.getRequiredConverters());
+    _typeConvertersMap.put(CardDao.class, CardDao_Impl.getRequiredConverters());
     return _typeConvertersMap;
   }
 
@@ -169,6 +199,20 @@ public final class NoteDatabase_Impl extends NoteDatabase {
           _noteDao = new NoteDao_Impl(this);
         }
         return _noteDao;
+      }
+    }
+  }
+
+  @Override
+  public CardDao cardDao() {
+    if (_cardDao != null) {
+      return _cardDao;
+    } else {
+      synchronized(this) {
+        if(_cardDao == null) {
+          _cardDao = new CardDao_Impl(this);
+        }
+        return _cardDao;
       }
     }
   }

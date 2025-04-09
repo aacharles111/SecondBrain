@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.secondbrain.app-mergeDebugResources-71:/values-as/values-as.xml",
+            "outputFile": "com.secondbrain.app-mergeDebugResources-80:/values-as/values-as.xml",
             "map": [
                 {
                     "source": "C:\\Users\\Charles\\.gradle\\caches\\8.9\\transforms\\c1d513b25fb7f559678ca83a64df294e\\transformed\\ui-release\\res\\values-as\\values-as.xml",

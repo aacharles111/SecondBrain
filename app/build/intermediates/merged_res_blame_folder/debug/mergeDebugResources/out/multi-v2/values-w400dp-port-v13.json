@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.secondbrain.app-mergeDebugResources-71:/values-w400dp-port-v13/values-w400dp-port-v13.xml",
+            "outputFile": "com.secondbrain.app-mergeDebugResources-80:/values-w400dp-port-v13/values-w400dp-port-v13.xml",
             "map": [
                 {
                     "source": "C:\\Users\\Charles\\.gradle\\caches\\8.9\\transforms\\f32f92617dfb870ba65150d7ba2220bf\\transformed\\material-1.11.0\\res\\values-w400dp-port-v13\\values-w400dp-port-v13.xml",

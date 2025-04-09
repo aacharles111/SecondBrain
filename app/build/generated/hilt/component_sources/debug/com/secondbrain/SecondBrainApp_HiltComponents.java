@@ -1,11 +1,21 @@
 package com.secondbrain;
 
+import com.secondbrain.di.AiModule;
 import com.secondbrain.di.AppModule;
+import com.secondbrain.di.WorkerModule;
 import com.secondbrain.ui.MainActivity_GeneratedInjector;
+import com.secondbrain.ui.card.CreateCardActivity_GeneratedInjector;
+import com.secondbrain.ui.card.CreateCardViewModel_HiltModules;
+import com.secondbrain.ui.card.SummaryReviewActivity_GeneratedInjector;
+import com.secondbrain.ui.card.SummaryReviewViewModel_HiltModules;
+import com.secondbrain.ui.home.HomeViewModel_HiltModules;
+import com.secondbrain.ui.knowledge.KnowledgeGraphViewModel_HiltModules;
 import com.secondbrain.ui.notes.NoteDetailViewModel_HiltModules;
 import com.secondbrain.ui.notes.NoteEditViewModel_HiltModules;
 import com.secondbrain.ui.notes.NoteListViewModel_HiltModules;
 import com.secondbrain.ui.search.SearchViewModel_HiltModules;
+import com.secondbrain.ui.settings.AiSettingsViewModel_HiltModules;
+import com.secondbrain.ui.settings.OpenRouterViewModel_HiltModules;
 import com.secondbrain.ui.settings.SettingsViewModel_HiltModules;
 import dagger.Binds;
 import dagger.Component;
@@ -131,11 +141,13 @@ public final class SecondBrainApp_HiltComponents {
 
   @Component(
       modules = {
+          AiModule.class,
           AppModule.class,
           ApplicationContextModule.class,
           HiltWrapper_FragmentGetContextFix_FragmentGetContextFixModule.class,
           ActivityRetainedCBuilderModule.class,
-          ServiceCBuilderModule.class
+          ServiceCBuilderModule.class,
+          WorkerModule.class
       }
   )
   @Singleton
@@ -158,15 +170,21 @@ public final class SecondBrainApp_HiltComponents {
 
   @Subcomponent(
       modules = {
+          AiSettingsViewModel_HiltModules.KeyModule.class,
+          CreateCardViewModel_HiltModules.KeyModule.class,
           HiltWrapper_ActivityRetainedComponentManager_LifecycleModule.class,
           HiltWrapper_SavedStateHandleModule.class,
+          HomeViewModel_HiltModules.KeyModule.class,
+          KnowledgeGraphViewModel_HiltModules.KeyModule.class,
           NoteDetailViewModel_HiltModules.KeyModule.class,
           NoteEditViewModel_HiltModules.KeyModule.class,
           NoteListViewModel_HiltModules.KeyModule.class,
+          OpenRouterViewModel_HiltModules.KeyModule.class,
           SearchViewModel_HiltModules.KeyModule.class,
           ActivityCBuilderModule.class,
           ViewModelCBuilderModule.class,
-          SettingsViewModel_HiltModules.KeyModule.class
+          SettingsViewModel_HiltModules.KeyModule.class,
+          SummaryReviewViewModel_HiltModules.KeyModule.class
       }
   )
   @ActivityRetainedScoped
@@ -189,6 +207,8 @@ public final class SecondBrainApp_HiltComponents {
   )
   @ActivityScoped
   public abstract static class ActivityC implements MainActivity_GeneratedInjector,
+      CreateCardActivity_GeneratedInjector,
+      SummaryReviewActivity_GeneratedInjector,
       ActivityComponent,
       DefaultViewModelFactories.ActivityEntryPoint,
       HiltWrapper_HiltViewModelFactory_ActivityCreatorEntryPoint,
@@ -202,12 +222,18 @@ public final class SecondBrainApp_HiltComponents {
 
   @Subcomponent(
       modules = {
+          AiSettingsViewModel_HiltModules.BindsModule.class,
+          CreateCardViewModel_HiltModules.BindsModule.class,
           HiltWrapper_HiltViewModelFactory_ViewModelModule.class,
+          HomeViewModel_HiltModules.BindsModule.class,
+          KnowledgeGraphViewModel_HiltModules.BindsModule.class,
           NoteDetailViewModel_HiltModules.BindsModule.class,
           NoteEditViewModel_HiltModules.BindsModule.class,
           NoteListViewModel_HiltModules.BindsModule.class,
+          OpenRouterViewModel_HiltModules.BindsModule.class,
           SearchViewModel_HiltModules.BindsModule.class,
-          SettingsViewModel_HiltModules.BindsModule.class
+          SettingsViewModel_HiltModules.BindsModule.class,
+          SummaryReviewViewModel_HiltModules.BindsModule.class
       }
   )
   @ViewModelScoped

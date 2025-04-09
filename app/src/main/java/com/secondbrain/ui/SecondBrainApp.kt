@@ -13,7 +13,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -21,17 +23,29 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.secondbrain.R
+import com.secondbrain.data.repository.SettingsRepository
+import com.secondbrain.ui.home.HomeScreen
+import com.secondbrain.ui.knowledge.KnowledgeGraphScreen
 import com.secondbrain.ui.notes.NoteDetailScreen
 import com.secondbrain.ui.notes.NoteEditScreen
 import com.secondbrain.ui.notes.NoteListScreen
 import com.secondbrain.ui.search.SearchScreen
+import com.secondbrain.ui.settings.AiSettingsScreen
+import com.secondbrain.ui.settings.OpenRouterModelScreen
 import com.secondbrain.ui.settings.SettingsScreen
+import com.secondbrain.ui.settings.SettingsViewModel
+import com.secondbrain.ui.theme.ThemeManager
 
 @Composable
-fun SecondBrainApp(sharedText: String? = null) {
-    val navController = rememberNavController()
+fun SecondBrainApp(
+    sharedText: String? = null,
+    settingsRepository: SettingsRepository = hiltViewModel<SettingsViewModel>().settingsRepository
+) {
+    // Apply theme based on settings
+    ThemeManager.AppTheme(settingsRepository = settingsRepository) {
+        val navController = rememberNavController()
 
-    Scaffold(
+        Scaffold(
         bottomBar = {
             NavigationBar {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -73,19 +87,55 @@ fun SecondBrainApp(sharedText: String? = null) {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Notes.route) {
-                NoteListScreen(
-                    navController = navController,
-                    sharedText = sharedText
-                )
+                HomeScreen()
             }
             composable(Screen.Search.route) {
                 SearchScreen(navController = navController)
             }
             composable(Screen.Settings.route) {
-                SettingsScreen()
+                SettingsScreen(
+                    onNavigateToAiSettings = {
+                        navController.navigate("settings/ai")
+                    }
+                )
+            }
+            composable("settings/ai") {
+                AiSettingsScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    },
+                    onNavigateToOpenRouterModels = {
+                        navController.navigate("settings/ai/openrouter")
+                    }
+                )
+            }
+            composable("settings/ai/openrouter") {
+                OpenRouterModelScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
             }
             composable("note/{noteId}") { _ ->
-                NoteDetailScreen(navController = navController)
+                NoteDetailScreen(
+                    navController = navController,
+                    onNavigateToKnowledgeGraph = { noteId ->
+                        navController.navigate("knowledge-graph/$noteId")
+                    }
+                )
+            }
+
+            composable("knowledge-graph/{cardId}") { backStackEntry ->
+                val cardId = backStackEntry.arguments?.getString("cardId") ?: return@composable
+                KnowledgeGraphScreen(
+                    cardId = cardId,
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    },
+                    onNavigateToCard = { relatedCardId ->
+                        navController.navigate("note/$relatedCardId")
+                    }
+                )
             }
             composable("note/edit/{noteId}") { _ ->
                 NoteEditScreen(navController = navController)
@@ -94,6 +144,7 @@ fun SecondBrainApp(sharedText: String? = null) {
                 NoteEditScreen(navController = navController, initialContent = sharedText)
             }
         }
+    }
     }
 }
 

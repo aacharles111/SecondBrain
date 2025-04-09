@@ -7,4 +7,19 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- App colors -->
+    <color name="colorPrimary">#FF6200EE</color>
+    <color name="colorPrimaryVariant">#FF3700B3</color>
+    <color name="colorSecondary">#FF03DAC5</color>
+    <color name="colorAccent">#FFBB86FC</color>
+
+    <!-- Entity colors for knowledge graph -->
+    <color name="entityPerson">#FF4CAF50</color>
+    <color name="entityOrganization">#FF2196F3</color>
+    <color name="entityLocation">#FFFFEB3B</color>
+    <color name="entityConcept">#FFFF9800</color>
+    <color name="entityTechnology">#FF9C27B0</color>
+    <color name="entityEvent">#FFF44336</color>
+    <color name="entityOther">#FF607D8B</color>
 </resources>
