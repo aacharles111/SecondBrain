@@ -4,80 +4,96 @@
 **Date:** April 8, 2025
 **Goal:** Build MVP focused on core features, user-controlled AI/Storage, and linking.
 
----
+## Current Status (Updated: May 2025)
 
-## Phase 0: Project Setup & Foundation (Priority: High)
+### Completed Phases ✅
+- Phase 0: Project Setup & Foundation
+- Phase 1: Core Note Management
+- Phase 6: Basic Search
 
-* `[ ]` **Environment Setup:**
-    * `[ ]` Install/Update Android Studio.
-    * `[ ]` Setup Kotlin environment.
-    * `[ ]` Setup Emulator/Test Device.
-* `[ ]` **Project Initialization:**
-    * `[ ]` Create new Android Project (Empty Compose Activity).
-    * `[ ]` Configure `build.gradle` (Kotlin version, dependencies placeholder).
-    * `[ ]` Setup package structure (e.g., `ui`, `data`, `domain`, `di`, `util`).
-* `[ ]` **Version Control:**
-    * `[ ]` Initialize Git repository.
-    * `[ ]` Create initial commit.
-    * `[ ]` Setup remote repository (e.g., GitHub, GitLab).
-    * `[ ]` Define branching strategy (e.g., Gitflow).
-* `[ ]` **Core Data Model:**
-    * `[ ]` Define `Note` data class/entity (ID, title, content, createdAt, updatedAt, metadata placeholders).
-* `[ ]` **Database Setup:**
-    * `[ ]` Add Room Persistence Library dependencies.
-    * `[ ]` Create Room `NoteDatabase`.
-    * `[ ]` Create `NoteDao` interface with basic CRUD operations (insert, update, delete, getById, getAll).
-    * `[ ]` Implement basic database migrations setup (if needed later).
-* `[ ]` **Dependency Injection:**
-    * `[ ]` Choose DI framework (e.g., Hilt, Koin).
-    * `[ ]` Add DI framework dependencies.
-    * `[ ]` Setup basic modules (AppModule, DatabaseModule).
-* `[ ]` **Basic Navigation:**
-    * `[ ]` Add Jetpack Navigation Compose dependency.
-    * `[ ]` Define basic navigation graph (e.g., NoteListScreen -> NoteDetailScreen -> NoteEditScreen).
-    * `[ ]` Implement basic navigation controller setup.
-* `[ ]` **Open Source:**
-    * `[ ]` Choose Open Source License (e.g., MIT, Apache 2.0).
-    * `[ ]` Add LICENSE file to repository root.
+### Partially Completed Phases 🔄
+- Phase 5: Linking - Basic (Editor Auto-complete pending)
+
+### Next Steps (Priority Order) 🚀
+1. Complete Phase 2: Content Capturing (Share Sheet Integration, URL Content Fetching)
+2. Implement Phase 3: AI Integration Framework
+3. Implement Phase 4: Markdown & Metadata
+4. Complete remaining parts of Phase 5: Linking - Basic (Editor Auto-complete)
+5. Implement Phase 7: Storage - Cloud Integration
 
 ---
 
-## Phase 1: Core Note Management (MVP - Priority: High)
+## Phase 0: Project Setup & Foundation (Priority: High) - COMPLETED ✅
 
-* `[ ]` **Note List Screen:**
-    * `[ ]` Design UI for displaying a list of notes (e.g., Card per note with title/snippet).
-    * `[ ]` Implement ViewModel for NoteListScreen.
-    * `[ ]` Implement fetching all notes from DB via DAO in ViewModel.
-    * `[ ]` Implement observing note list LiveData/Flow in Composable.
-    * `[ ]` Implement navigation to NoteDetailScreen on item tap.
-    * `[ ]` Implement "New Note" Floating Action Button (FAB) or equivalent.
-* `[ ]` **Note Detail/View Screen:**
-    * `[ ]` Design UI for displaying a single note's content.
-    * `[ ]` Implement ViewModel for NoteDetailScreen.
-    * `[ ]` Implement fetching specific note by ID from DB in ViewModel.
-    * `[ ]` Implement Markdown rendering for note content (basic initial rendering).
-    * `[ ]` Add "Edit" button/icon navigating to NoteEditScreen.
-    * `[ ]` Add "Delete" action/button.
-* `[ ]` **Note Editor Screen:**
-    * `[ ]` Design UI for editing note content (TextField for Markdown).
-    * `[ ]` Implement ViewModel for NoteEditScreen.
-    * `[ ]` Load existing note content into editor (if editing).
-    * `[ ]` Implement saving changes (update DB via DAO/ViewModel).
-    * `[ ]` Implement creating new note (insert into DB).
-    * `[ ]` Handle navigation back after save/cancel.
-* `[ ]` **Deletion Logic:**
-    * `[ ]` Implement delete function in NoteDao.
-    * `[ ]` Implement delete logic in relevant ViewModel.
-    * `[ ]` Add confirmation dialog before deletion.
-* `[ ]` **Basic Local Storage (`.md`):**
-    * `[ ]` *(Defer initial DB implementation for faster core UI? Alternative: Start with DB)*
-    * `[ ]` Refine Note saving logic to write content to a `.md` file in app-specific storage.
-    * `[ ]` Refine Note loading logic to read from `.md` file.
-    * `[ ]` Link DB entry (metadata) to the `.md` file path.
+* `[x]` **Environment Setup:**
+    * `[x]` Install/Update Android Studio.
+    * `[x]` Setup Kotlin environment.
+    * `[x]` Setup Emulator/Test Device.
+* `[x]` **Project Initialization:**
+    * `[x]` Create new Android Project (Empty Compose Activity).
+    * `[x]` Configure `build.gradle` (Kotlin version, dependencies placeholder).
+    * `[x]` Setup package structure (e.g., `ui`, `data`, `domain`, `di`, `util`).
+* `[x]` **Version Control:**
+    * `[x]` Initialize Git repository.
+    * `[x]` Create initial commit.
+    * `[x]` Setup remote repository (e.g., GitHub, GitLab).
+    * `[x]` Define branching strategy (e.g., Gitflow).
+* `[x]` **Core Data Model:**
+    * `[x]` Define `Note` data class/entity (ID, title, content, createdAt, updatedAt, metadata placeholders).
+* `[x]` **Database Setup:**
+    * `[x]` Add Room Persistence Library dependencies.
+    * `[x]` Create Room `NoteDatabase`.
+    * `[x]` Create `NoteDao` interface with basic CRUD operations (insert, update, delete, getById, getAll).
+    * `[x]` Implement basic database migrations setup (if needed later).
+* `[x]` **Dependency Injection:**
+    * `[x]` Choose DI framework (Hilt).
+    * `[x]` Add DI framework dependencies.
+    * `[x]` Setup basic modules (AppModule, DatabaseModule).
+* `[x]` **Basic Navigation:**
+    * `[x]` Add Jetpack Navigation Compose dependency.
+    * `[x]` Define basic navigation graph (e.g., NoteListScreen -> NoteDetailScreen -> NoteEditScreen).
+    * `[x]` Implement basic navigation controller setup.
+* `[x]` **Open Source:**
+    * `[x]` Choose Open Source License (MIT).
+    * `[x]` Add LICENSE file to repository root.
 
 ---
 
-## Phase 2: Content Capturing (MVP - Priority: High)
+## Phase 1: Core Note Management (MVP - Priority: High) - COMPLETED ✅
+
+* `[x]` **Note List Screen:**
+    * `[x]` Design UI for displaying a list of notes (e.g., Card per note with title/snippet).
+    * `[x]` Implement ViewModel for NoteListScreen.
+    * `[x]` Implement fetching all notes from DB via DAO in ViewModel.
+    * `[x]` Implement observing note list LiveData/Flow in Composable.
+    * `[x]` Implement navigation to NoteDetailScreen on item tap.
+    * `[x]` Implement "New Note" Floating Action Button (FAB) or equivalent.
+* `[x]` **Note Detail/View Screen:**
+    * `[x]` Design UI for displaying a single note's content.
+    * `[x]` Implement ViewModel for NoteDetailScreen.
+    * `[x]` Implement fetching specific note by ID from DB in ViewModel.
+    * `[x]` Implement Markdown rendering for note content (basic initial rendering).
+    * `[x]` Add "Edit" button/icon navigating to NoteEditScreen.
+    * `[x]` Add "Delete" action/button.
+* `[x]` **Note Editor Screen:**
+    * `[x]` Design UI for editing note content (TextField for Markdown).
+    * `[x]` Implement ViewModel for NoteEditScreen.
+    * `[x]` Load existing note content into editor (if editing).
+    * `[x]` Implement saving changes (update DB via DAO/ViewModel).
+    * `[x]` Implement creating new note (insert into DB).
+    * `[x]` Handle navigation back after save/cancel.
+* `[x]` **Deletion Logic:**
+    * `[x]` Implement delete function in NoteDao.
+    * `[x]` Implement delete logic in relevant ViewModel.
+    * `[x]` Add confirmation dialog before deletion.
+* `[x]` **Basic Local Storage (`.md`):**
+    * `[x]` Refine Note saving logic to write content to a `.md` file in app-specific storage.
+    * `[x]` Refine Note loading logic to read from `.md` file.
+    * `[x]` Link DB entry (metadata) to the `.md` file path.
+
+---
+
+## Phase 2: Content Capturing (MVP - Priority: High) - CURRENT FOCUS 💯
 
 * `[ ]` **Share Sheet Integration:**
     * `[ ]` Configure `AndroidManifest.xml` to handle `ACTION_SEND` intents for `text/plain` (URLs, text).
@@ -95,7 +111,7 @@
 
 ---
 
-## Phase 3: AI Integration Framework (MVP - Priority: Medium-High)
+## Phase 3: AI Integration Framework (MVP - Priority: Medium-High) - UPCOMING 📈
 
 * `[ ]` **Settings Screen - AI Section:**
     * `[ ]` Create Settings Screen Composable.
@@ -129,7 +145,7 @@
 
 ---
 
-## Phase 4: Markdown & Metadata (MVP - Priority: High)
+## Phase 4: Markdown & Metadata (MVP - Priority: High) - UPCOMING 📈
 
 * `[ ]` **Markdown Rendering:**
     * `[ ]` Research and choose a Markdown rendering library for Jetpack Compose (e.g., `markdown-compose`, `commonmark-java` with Compose integration).
@@ -144,22 +160,21 @@
 
 ---
 
-## Phase 5: Linking - Basic (MVP - Priority: High)
+## Phase 5: Linking - Basic (MVP - Priority: High) - PARTIALLY COMPLETED ✅
 
-* `[ ]` **Syntax & Parsing:**
-    * `[ ]` Implement regex or parser to detect `[[Note Title]]` syntax in Markdown content.
-* `[ ]` **Link Resolution & Navigation:**
-    * `[ ]` Implement logic to find target `Note` entity by title (case-insensitive search on Note titles in DB).
-    * `[ ]` Make `[[Link]]` text clickable in rendered Markdown view.
-    * `[ ]` Implement navigation to the target NoteDetailScreen on link click.
-    * `[ ]` Handle case where target note title doesn't exist (e.g., show toast, disable link).
-* `[ ]` **Backlinks:**
-    * `[ ]` Design DB structure for storing links (e.g., separate `Links` table: `source_note_id`, `target_note_title`, `target_note_id`). *Update:* Maybe just query notes content? Decide on approach.*
-    * `[ ]` *If separate table:* Update link table whenever a note is saved/updated/deleted.
-    * `[ ]` Implement DB query (DAO method) to find all notes linking *to* a given `note_id` or `note_title`.
-    * `[ ]` Implement UI section in NoteDetailScreen to display backlinks (list of clickable source note titles).
-    * `[ ]` Fetch and display backlinks in NoteDetailViewModel.
-* `[ ]` **Editor Auto-complete:**
+* `[x]` **Syntax & Parsing:**
+    * `[x]` Implement regex or parser to detect `[[Note Title]]` syntax in Markdown content.
+* `[x]` **Link Resolution & Navigation:**
+    * `[x]` Implement logic to find target `Note` entity by title (case-insensitive search on Note titles in DB).
+    * `[x]` Make `[[Link]]` text clickable in rendered Markdown view.
+    * `[x]` Implement navigation to the target NoteDetailScreen on link click.
+    * `[x]` Handle case where target note title doesn't exist (e.g., show toast, disable link).
+* `[x]` **Backlinks:**
+    * `[x]` Design DB structure for storing links (using content query approach).
+    * `[x]` Implement DB query (DAO method) to find all notes linking *to* a given `note_id` or `note_title`.
+    * `[x]` Implement UI section in NoteDetailScreen to display backlinks (list of clickable source note titles).
+    * `[x]` Fetch and display backlinks in NoteDetailViewModel.
+* `[ ]` **Editor Auto-complete:** - PENDING
     * `[ ]` Implement logic in NoteEditorScreen to detect typing `[[`.
     * `[ ]` Query existing Note titles from DB.
     * `[ ]` Display suggestions in a dropdown/popup near the cursor.
@@ -167,16 +182,16 @@
 
 ---
 
-## Phase 6: Basic Search (MVP - Priority: Medium)
+## Phase 6: Basic Search (MVP - Priority: Medium) - COMPLETED ✅
 
-* `[ ]` **Search UI:**
-    * `[ ]` Add Search Bar Composable to NoteListScreen (or separate Search Screen).
-* `[ ]` **Search Logic:**
-    * `[ ]` Implement DAO method for searching notes by keyword (using `LIKE %keyword%` on title and content fields). Ensure it's efficient (FTS4/5 if needed later).
-    * `[ ]` Implement search logic in ViewModel, triggering query on search text change (with debouncing).
-* `[ ]` **Display Results:**
-    * `[ ]` Display search results list dynamically below search bar.
-    * `[ ]` Make search results clickable, navigating to the respective NoteDetailScreen.
+* `[x]` **Search UI:**
+    * `[x]` Add Search Bar Composable to NoteListScreen (or separate Search Screen).
+* `[x]` **Search Logic:**
+    * `[x]` Implement DAO method for searching notes by keyword (using `LIKE %keyword%` on title and content fields).
+    * `[x]` Implement search logic in ViewModel, triggering query on search text change (with debouncing).
+* `[x]` **Display Results:**
+    * `[x]` Display search results list dynamically below search bar.
+    * `[x]` Make search results clickable, navigating to the respective NoteDetailScreen.
 
 ---
 
