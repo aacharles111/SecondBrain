@@ -18,21 +18,21 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-@OptIn(FlowPreview::class)
+@OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val noteRepository: NoteRepository
 ) : ViewModel() {
-    
+
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
-    
+
     private val _searchResults = MutableStateFlow<List<Note>>(emptyList())
     val searchResults: StateFlow<List<Note>> = _searchResults.asStateFlow()
-    
+
     private val _isSearching = MutableStateFlow(false)
     val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
-    
+
     init {
         viewModelScope.launch {
             _searchQuery
@@ -53,7 +53,7 @@ class SearchViewModel @Inject constructor(
                 }
         }
     }
-    
+
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
         if (query.isBlank()) {

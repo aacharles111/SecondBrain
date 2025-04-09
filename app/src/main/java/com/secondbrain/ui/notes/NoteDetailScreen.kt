@@ -12,13 +12,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,9 +51,9 @@ fun NoteDetailScreen(
 ) {
     val noteState by viewModel.noteState.collectAsState()
     val backlinksState by viewModel.backlinksState.collectAsState()
-    
+
     var showDeleteDialog by remember { mutableStateOf(false) }
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -70,7 +70,7 @@ fun NoteDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
                     }
@@ -124,7 +124,7 @@ fun NoteDetailScreen(
             }
         }
     }
-    
+
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -169,9 +169,9 @@ fun NoteDetailContent(
             markdown = note.content,
             modifier = Modifier.fillMaxWidth()
         )
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         // Metadata
         if (note.sourceUrl != null) {
             Text(
@@ -180,21 +180,21 @@ fun NoteDetailContent(
             )
             Spacer(modifier = Modifier.height(8.dp))
         }
-        
+
         // Backlinks section
-        Divider(modifier = Modifier.padding(vertical = 16.dp))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
         Text(
             text = "Linked Mentions",
             style = MaterialTheme.typography.titleMedium
         )
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         when (backlinksState) {
             is BacklinksState.Loading -> {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
             }
             is BacklinksState.Success -> {
-                val backlinks = (backlinksState as BacklinksState.Success).backlinks
+                val backlinks = backlinksState.backlinks
                 if (backlinks.isEmpty()) {
                     Text("No linked mentions yet")
                 } else {
@@ -217,7 +217,7 @@ fun NoteDetailContent(
                 }
             }
             is BacklinksState.Error -> {
-                val errorMessage = (backlinksState as BacklinksState.Error).message
+                val errorMessage = backlinksState.message
                 Text("Error loading backlinks: $errorMessage")
             }
         }

@@ -2,7 +2,7 @@ package com.secondbrain.ui
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Notes
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -84,10 +84,10 @@ fun SecondBrainApp(sharedText: String? = null) {
             composable(Screen.Settings.route) {
                 SettingsScreen()
             }
-            composable("note/{noteId}") { backStackEntry ->
+            composable("note/{noteId}") { _ ->
                 NoteDetailScreen(navController = navController)
             }
-            composable("note/edit/{noteId}") { backStackEntry ->
+            composable("note/edit/{noteId}") { _ ->
                 NoteEditScreen(navController = navController)
             }
             composable("note/new") {
@@ -98,7 +98,7 @@ fun SecondBrainApp(sharedText: String? = null) {
 }
 
 sealed class Screen(val route: String, val resourceId: Int, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    object Notes : Screen("notes", R.string.nav_notes, Icons.Filled.Notes)
+    object Notes : Screen("notes", R.string.nav_notes, Icons.Filled.Home)
     object Search : Screen("search", R.string.nav_search, Icons.Filled.Search)
     object Settings : Screen("settings", R.string.nav_settings, Icons.Filled.Settings)
 }

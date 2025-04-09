@@ -6,8 +6,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -45,17 +45,17 @@ fun NoteEditScreen(
     val title by viewModel.titleState.collectAsState()
     val content by viewModel.contentState.collectAsState()
     val saveState by viewModel.saveState.collectAsState()
-    
+
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    
+
     // Handle initial content from shared text
     LaunchedEffect(initialContent) {
         if (!initialContent.isNullOrEmpty() && noteState is NoteEditState.NewNote) {
             viewModel.updateContent(initialContent)
         }
     }
-    
+
     // Handle save state changes
     LaunchedEffect(saveState) {
         when (saveState) {
@@ -79,7 +79,7 @@ fun NoteEditScreen(
             else -> {}
         }
     }
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -95,7 +95,7 @@ fun NoteEditScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
                     }
@@ -106,7 +106,7 @@ fun NoteEditScreen(
                         enabled = saveState !is SaveState.Saving
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Save,
+                            imageVector = Icons.Default.Check,
                             contentDescription = stringResource(R.string.action_save)
                         )
                     }
@@ -163,7 +163,7 @@ fun NoteEditContent(
             modifier = Modifier.fillMaxWidth(),
             enabled = !isSaving
         )
-        
+
         OutlinedTextField(
             value = content,
             onValueChange = onContentChange,
@@ -174,7 +174,7 @@ fun NoteEditContent(
                 .padding(top = 16.dp),
             enabled = !isSaving
         )
-        
+
         if (isSaving) {
             CircularProgressIndicator(
                 modifier = Modifier
