@@ -8,8 +8,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.secondbrain.data.model.Card
 import com.secondbrain.data.model.CardType
+import com.secondbrain.data.model.WebSearchResult
 import com.secondbrain.data.repository.CardRepository
 import com.secondbrain.data.service.AiService
+import com.secondbrain.data.service.WebSearchService
 import com.secondbrain.data.service.ai.AiServiceManager
 import com.secondbrain.util.ContentExtractor
 import com.secondbrain.util.PdfContent
@@ -26,7 +28,9 @@ import android.net.Uri
 class CreateCardViewModel @Inject constructor(
     private val cardRepository: CardRepository,
     private val aiService: AiService,
-    private val aiServiceManager: AiServiceManager
+    private val aiServiceManager: AiServiceManager,
+    private val contentExtractor: ContentExtractor,
+    private val webSearchService: WebSearchService
 ) : ViewModel() {
 
     // Common states
@@ -45,13 +49,30 @@ class CreateCardViewModel @Inject constructor(
         "Key facts"
     )
 
+    // AI model options
+    var selectedAiModel by mutableStateOf("gpt-3.5-turbo")
+    var aiModelOptionsExpanded by mutableStateOf(false)
+    var aiModels = mutableStateListOf<String>()
+    var isLoadingModels by mutableStateOf(false)
+
+    // Summary toggle states for each tab (default is ON)
+    var urlSummaryEnabled by mutableStateOf(true)
+    var searchSummaryEnabled by mutableStateOf(true)
+    var pdfSummaryEnabled by mutableStateOf(true)
+    var noteSummaryEnabled by mutableStateOf(true)
+    var audioSummaryEnabled by mutableStateOf(true)
+
     // URL tab states
     var urlInput by mutableStateOf("")
 
     // Search tab states
     var searchQuery by mutableStateOf("")
-    val searchSources = listOf("Google", "Wikipedia", "WikiData")
-    val selectedSearchSources = mutableStateListOf("Google", "Wikipedia", "WikiData")
+    val searchSources = listOf("Web", "Wikipedia", "WikiData")
+    val selectedSearchSources = mutableStateListOf("Web", "Wikipedia", "WikiData")
+    val searchResults = mutableStateListOf<WebSearchResult>()
+    var isSearching by mutableStateOf(false)
+    var selectedSearchResult by mutableStateOf<WebSearchResult?>(null)
+    var searchError by mutableStateOf<String?>(null)
 
     // PDF tab states
     var extractAllText by mutableStateOf(true)
@@ -59,22 +80,6 @@ class CreateCardViewModel @Inject constructor(
     var pageRanges by mutableStateOf("")
     val uploadedPdfFiles = mutableStateListOf<Uri>()
     var extractedPdfContent by mutableStateOf<PdfContent?>(null)
-
-    // PDF upload function
-    fun uploadPdf(uri: Uri, context: Context) {
-        viewModelScope.launch {
-            isLoading = true
-            PdfProcessor.extractText(context, uri).onSuccess { pdfContent ->
-                extractedPdfContent = pdfContent
-                uploadedPdfFiles.add(uri)
-                isLoading = false
-            }.onFailure { error ->
-                android.util.Log.e("CreateCardViewModel", "Error extracting PDF content", error)
-                errorMessage = "Error extracting PDF content: ${error.message}"
-                isLoading = false
-            }
-        }
-    }
 
     // Note tab states
     var noteTitle by mutableStateOf("")
@@ -87,70 +92,179 @@ class CreateCardViewModel @Inject constructor(
     var transcriptionLanguageMenuExpanded by mutableStateOf(false)
     val uploadedAudioFiles = mutableStateListOf<String>()
 
-    // AI model states
-    var selectedAiModel by mutableStateOf("Gemini")
-    var aiModelMenuExpanded by mutableStateOf(false)
-    val supportedAiModels = listOf("Gemini", "OpenAI", "Claude", "DeepSeek", "Custom")
-
-    // Error state
+    // Loading and error states
+    var isLoading by mutableStateOf(false)
     var errorMessage by mutableStateOf<String?>(null)
+    var extractedUrlContent by mutableStateOf<UrlContent?>(null)
 
     // Navigation state
     var navigateToSummaryReview by mutableStateOf<String?>(null)
 
-    // Loading state
-    var isLoading by mutableStateOf(false)
+    init {
+        loadAiModels()
+    }
 
-    // URL content state
-    var extractedUrlContent by mutableStateOf<UrlContent?>(null)
-
-    // Create card function
-    fun createCard() {
+    private fun loadAiModels() {
         viewModelScope.launch {
+            isLoadingModels = true
             try {
-                isLoading = true
-
-                // Extract content based on the active tab
-                when {
-                    urlInput.isNotEmpty() -> {
-                        // Extract content from URL
-                        ContentExtractor.extractFromUrl(urlInput).onSuccess { urlContent ->
-                            extractedUrlContent = urlContent
-                            generateSummaryAndCreateCard(urlContent.content)
-                        }.onFailure { error ->
-                            android.util.Log.e("CreateCardViewModel", "Error extracting URL content", error)
-                            errorMessage = "Error extracting URL content: ${error.message}"
-                            isLoading = false
-                        }
-                    }
-                    searchQuery.isNotEmpty() -> {
-                        // For now, just use the search query as content
-                        val content = "Search results for: $searchQuery"
-                        generateSummaryAndCreateCard(content)
-                    }
-                    uploadedPdfFiles.isNotEmpty() -> {
-                        // For now, just use a placeholder for PDF content
-                        val content = "Content extracted from PDF"
-                        generateSummaryAndCreateCard(content)
-                    }
-                    noteContent.isNotEmpty() -> {
-                        // Use the note content directly
-                        generateSummaryAndCreateCard(noteContent)
-                    }
-                    uploadedAudioFiles.isNotEmpty() -> {
-                        // For now, just use a placeholder for audio transcription
-                        val content = "Transcription of audio"
-                        generateSummaryAndCreateCard(content)
-                    }
-                    else -> {
-                        errorMessage = "Please enter some content"
-                        isLoading = false
-                    }
+                // This is a placeholder - in the real app, we would call aiServiceManager.getAvailableModels()
+                val models = listOf("gpt-3.5-turbo", "gpt-4", "claude-3-opus", "claude-3-sonnet")
+                aiModels.clear()
+                aiModels.addAll(models)
+                if (aiModels.isNotEmpty() && !aiModels.contains(selectedAiModel)) {
+                    selectedAiModel = aiModels.first()
                 }
             } catch (e: Exception) {
-                android.util.Log.e("CreateCardViewModel", "Error creating card", e)
-                errorMessage = "Error creating card: ${e.message}"
+                android.util.Log.e("CreateCardViewModel", "Error loading AI models", e)
+                // Add some default models if loading fails
+                aiModels.clear()
+                aiModels.addAll(listOf("gpt-3.5-turbo", "gpt-4"))
+            } finally {
+                isLoadingModels = false
+            }
+        }
+    }
+
+    fun extractUrlContent(context: Context) {
+        if (urlInput.isBlank()) {
+            errorMessage = "Please enter a URL"
+            return
+        }
+
+        isLoading = true
+        errorMessage = null
+        viewModelScope.launch {
+            try {
+                val contentResult = contentExtractor.extractFromUrl(urlInput)
+                if (contentResult.isSuccess) {
+                    extractedUrlContent = contentResult.getOrNull()
+                    if (extractedUrlContent != null) {
+                        generateSummaryAndCreateCard(extractedUrlContent!!.content)
+                    } else {
+                        errorMessage = "Error extracting content: Unable to extract content"
+                        isLoading = false
+                    }
+                } else {
+                    errorMessage = "Error extracting content: ${contentResult.exceptionOrNull()?.message ?: "Unknown error"}"
+                    isLoading = false
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("CreateCardViewModel", "Error extracting URL content", e)
+                errorMessage = "Error extracting content: ${e.message}"
                 isLoading = false
+            }
+        }
+    }
+
+    fun uploadPdf(uri: Uri, context: Context) {
+        uploadedPdfFiles.clear()
+        uploadedPdfFiles.add(uri)
+        extractPdfContent(context, uri)
+    }
+
+    fun extractPdfContent(context: Context, uri: Uri) {
+        isLoading = true
+        errorMessage = null
+        viewModelScope.launch {
+            try {
+                val contentResult = if (extractSpecificPages && pageRanges.isNotBlank()) {
+                    // This is a placeholder since we don't have a method to extract specific pages
+                    PdfProcessor.extractText(context, uri)
+                } else {
+                    PdfProcessor.extractText(context, uri)
+                }
+
+                if (contentResult.isSuccess) {
+                    extractedPdfContent = contentResult.getOrNull()
+                } else {
+                    throw contentResult.exceptionOrNull() ?: Exception("Failed to extract PDF content")
+                }
+                if (extractedPdfContent != null) {
+                    generateSummaryAndCreateCard(extractedPdfContent!!.content)
+                } else {
+                    throw Exception("Failed to extract PDF content")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("CreateCardViewModel", "Error extracting PDF content", e)
+                errorMessage = "Error extracting PDF content: ${e.message}"
+                isLoading = false
+            }
+        }
+    }
+
+    private fun parsePageRanges(input: String): List<Int> {
+        val pages = mutableListOf<Int>()
+        val ranges = input.split(",")
+
+        for (range in ranges) {
+            val trimmedRange = range.trim()
+            if (trimmedRange.contains("-")) {
+                val (start, end) = trimmedRange.split("-").map { it.trim().toIntOrNull() ?: 0 }
+                if (start > 0 && end >= start) {
+                    pages.addAll(start..end)
+                }
+            } else {
+                val page = trimmedRange.toIntOrNull() ?: 0
+                if (page > 0) {
+                    pages.add(page)
+                }
+            }
+        }
+
+        return pages
+    }
+
+    fun createNoteCard() {
+        if (noteContent.isBlank()) {
+            errorMessage = "Please enter some content for your note"
+            return
+        }
+
+        isLoading = true
+        errorMessage = null
+        generateSummaryAndCreateCard(noteContent)
+    }
+
+    fun createAudioCard() {
+        // Placeholder for audio card creation
+        errorMessage = "Audio card creation not implemented yet"
+    }
+
+    fun createCardFromActiveTab() {
+        errorMessage = null
+        when {
+            urlInput.isNotEmpty() -> {
+                // URL tab is active
+                extractUrlContent(android.app.Application())
+            }
+            searchQuery.isNotEmpty() -> {
+                // Search tab is active
+                val selectedResult = selectedSearchResult
+                val content = if (selectedResult != null) {
+                    "Title: ${selectedResult.title}\n\n" +
+                    "Source: ${selectedResult.source}\n\n" +
+                    "URL: ${selectedResult.url}\n\n" +
+                    "Description: ${selectedResult.snippet}"
+                } else {
+                    "Search results for: $searchQuery"
+                }
+                generateSummaryAndCreateCard(content)
+            }
+            uploadedPdfFiles.isNotEmpty() -> {
+                // PDF tab is active
+                extractPdfContent(android.app.Application(), uploadedPdfFiles.first())
+            }
+            noteContent.isNotEmpty() -> {
+                // Note tab is active
+                createNoteCard()
+            }
+            uploadedAudioFiles.isNotEmpty() -> {
+                // Audio tab is active
+                createAudioCard()
+            }
+            else -> {
+                errorMessage = "No content to create card from"
             }
         }
     }
@@ -159,37 +273,137 @@ class CreateCardViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 if (content.isNotEmpty()) {
-                    // Generate summary using AI
-                    aiService.summarize(
-                        content = content,
-                        summaryType = selectedSummaryType,
-                        language = selectedLanguage,
-                        aiModel = selectedAiModel
-                    ).onSuccess { summary ->
-                        // Create card with summary
+                    // Determine content type based on active tab
+                    val contentType = when {
+                        urlInput.isNotEmpty() -> CardType.URL
+                        searchQuery.isNotEmpty() -> CardType.SEARCH
+                        uploadedPdfFiles.isNotEmpty() -> CardType.PDF
+                        noteContent.isNotEmpty() -> CardType.NOTE
+                        uploadedAudioFiles.isNotEmpty() -> CardType.AUDIO
+                        else -> null
+                    }
+
+                    // Check if summary is enabled for the current tab
+                    val isSummaryEnabled = when (contentType) {
+                        CardType.URL -> urlSummaryEnabled
+                        CardType.SEARCH -> searchSummaryEnabled
+                        CardType.PDF -> pdfSummaryEnabled
+                        CardType.NOTE -> noteSummaryEnabled
+                        CardType.AUDIO -> audioSummaryEnabled
+                        else -> true
+                    }
+
+                    if (isSummaryEnabled) {
+                        // Generate summary using AI
+                        aiService.summarize(
+                            content = content,
+                            summaryType = selectedSummaryType,
+                            language = selectedLanguage,
+                            aiModel = selectedAiModel,
+                            contentType = contentType
+                        ).onSuccess { summary ->
+                            // Check if summary is empty
+                            if (summary.isBlank()) {
+                                android.util.Log.e("CreateCardViewModel", "Summary is empty, not creating card")
+                                errorMessage = "Failed to generate summary. Please try again or use a different AI model."
+                                isLoading = false
+                                return@onSuccess
+                            }
+
+                            // Generate tags for the content
+                            val generatedTags = mutableListOf<String>()
+                            aiService.extractTags(
+                                content = content,
+                                language = selectedLanguage,
+                                aiModel = selectedAiModel,
+                                maxTags = 15 // Generate between 10-20 tags
+                            ).onSuccess { tags ->
+                                generatedTags.addAll(tags)
+                                android.util.Log.d("CreateCardViewModel", "Generated ${tags.size} tags")
+                            }.onFailure { error ->
+                                android.util.Log.e("CreateCardViewModel", "Error generating tags", error)
+                            }
+
+                            // Create card with summary and tags
+                            val card = when {
+                                urlInput.isNotEmpty() -> createUrlCard(summary, generatedTags)
+                                searchQuery.isNotEmpty() -> createSearchCard(summary, generatedTags)
+                                uploadedPdfFiles.isNotEmpty() -> createPdfCard(summary, generatedTags)
+                                noteContent.isNotEmpty() -> createNoteCard(summary, generatedTags)
+                                uploadedAudioFiles.isNotEmpty() -> createAudioCard(summary, generatedTags)
+                                else -> null
+                            }
+
+                            card?.let {
+                                android.util.Log.d("CreateCardViewModel", "Saving card with id: ${it.id}, title: ${it.title}, summary length: ${it.summary.length}")
+                                val result = cardRepository.saveCard(it)
+                                result.onSuccess { cardId ->
+                                    // Navigate to summary review screen with the card ID
+                                    android.util.Log.d("CreateCardViewModel", "Card saved successfully with id: $cardId, navigating to summary review")
+                                    navigateToSummaryReview = cardId
+                                }.onFailure { error ->
+                                    android.util.Log.e("CreateCardViewModel", "Error saving card", error)
+                                    errorMessage = "Error saving card: ${error.message}"
+                                }
+                            }
+                        }.onFailure { error ->
+                            // Handle error
+                            android.util.Log.e("CreateCardViewModel", "Error generating summary", error)
+
+                            // Provide more user-friendly error messages
+                            errorMessage = when (error) {
+                                is com.secondbrain.util.ApiPaymentRequiredException -> {
+                                    "OpenRouter requires more credits: ${error.message?.substringAfter("Payment required: ")}"
+                                }
+                                is com.secondbrain.util.ApiRateLimitException -> {
+                                    "Rate limit exceeded. Please try again later."
+                                }
+                                is com.secondbrain.util.ApiAuthenticationException -> {
+                                    "Authentication error. Please check your API key in settings."
+                                }
+                                else -> "Error generating summary: ${error.message}"
+                            }
+                        }
+                    } else {
+                        // Skip AI summarization and create card with empty summary
+                        android.util.Log.d("CreateCardViewModel", "Summary disabled, creating card without summary")
+
+                        // Generate tags for the content
+                        val generatedTags = mutableListOf<String>()
+                        aiService.extractTags(
+                            content = content,
+                            language = selectedLanguage,
+                            aiModel = selectedAiModel,
+                            maxTags = 15 // Generate between 10-20 tags
+                        ).onSuccess { tags ->
+                            generatedTags.addAll(tags)
+                            android.util.Log.d("CreateCardViewModel", "Generated ${tags.size} tags")
+                        }.onFailure { error ->
+                            android.util.Log.e("CreateCardViewModel", "Error generating tags", error)
+                        }
+
+                        // Create card with empty summary and tags
                         val card = when {
-                            urlInput.isNotEmpty() -> createUrlCard(summary)
-                            searchQuery.isNotEmpty() -> createSearchCard(summary)
-                            uploadedPdfFiles.isNotEmpty() -> createPdfCard(summary)
-                            noteContent.isNotEmpty() -> createNoteCard(summary)
-                            uploadedAudioFiles.isNotEmpty() -> createAudioCard(summary)
+                            urlInput.isNotEmpty() -> createUrlCard("", generatedTags)
+                            searchQuery.isNotEmpty() -> createSearchCard("", generatedTags)
+                            uploadedPdfFiles.isNotEmpty() -> createPdfCard("", generatedTags)
+                            noteContent.isNotEmpty() -> createNoteCard("", generatedTags)
+                            uploadedAudioFiles.isNotEmpty() -> createAudioCard("", generatedTags)
                             else -> null
                         }
 
                         card?.let {
+                            android.util.Log.d("CreateCardViewModel", "Saving card with id: ${it.id}, title: ${it.title}, no summary")
                             val result = cardRepository.saveCard(it)
                             result.onSuccess { cardId ->
                                 // Navigate to summary review screen with the card ID
+                                android.util.Log.d("CreateCardViewModel", "Card saved successfully with id: $cardId, navigating to summary review")
                                 navigateToSummaryReview = cardId
                             }.onFailure { error ->
                                 android.util.Log.e("CreateCardViewModel", "Error saving card", error)
                                 errorMessage = "Error saving card: ${error.message}"
                             }
                         }
-                    }.onFailure { error ->
-                        // Handle error
-                        android.util.Log.e("CreateCardViewModel", "Error generating summary", error)
-                        errorMessage = "Error generating summary: ${error.message}"
                     }
                 } else {
                     errorMessage = "No content to summarize"
@@ -203,17 +417,16 @@ class CreateCardViewModel @Inject constructor(
         }
     }
 
-    private fun createUrlCard(summary: String): Card {
+    private fun createUrlCard(summary: String, tags: List<String> = emptyList()): Card {
         val urlContent = extractedUrlContent
-
         return Card(
             id = UUID.randomUUID().toString(),
-            title = urlContent?.title ?: "URL Content",
-            content = urlContent?.content ?: "URL content from: $urlInput",
+            title = urlContent?.title ?: urlInput,
             summary = summary,
-            type = CardType.URL,
+            content = urlContent?.content ?: "",
             source = urlInput,
-            tags = emptyList(),
+            type = CardType.URL,
+            tags = tags,
             createdAt = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis(),
             language = selectedLanguage,
@@ -223,34 +436,35 @@ class CreateCardViewModel @Inject constructor(
         )
     }
 
-    private fun createSearchCard(summary: String): Card {
+    private fun createSearchCard(summary: String, tags: List<String> = emptyList()): Card {
+        val result = selectedSearchResult
         return Card(
             id = UUID.randomUUID().toString(),
-            title = "Search: $searchQuery",
-            content = "Search results for: $searchQuery", // This would be the search results
+            title = result?.title ?: "Search: $searchQuery",
             summary = summary,
+            content = result?.snippet ?: "Search results for: $searchQuery",
+            source = result?.url ?: "Search query: $searchQuery",
             type = CardType.SEARCH,
-            source = "Search: $searchQuery (Sources: ${selectedSearchSources.joinToString()})",
-            tags = emptyList(),
+            tags = tags,
             createdAt = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis(),
             language = selectedLanguage,
             aiModel = selectedAiModel,
-            summaryType = selectedSummaryType
+            summaryType = selectedSummaryType,
+            thumbnailUrl = result?.thumbnailUrl
         )
     }
 
-    private fun createPdfCard(summary: String): Card {
+    private fun createPdfCard(summary: String, tags: List<String> = emptyList()): Card {
         val pdfContent = extractedPdfContent
-
         return Card(
             id = UUID.randomUUID().toString(),
             title = pdfContent?.title ?: "PDF Document",
-            content = pdfContent?.content ?: "Content extracted from PDF",
             summary = summary,
+            content = pdfContent?.content ?: "",
+            source = "PDF: ${pdfContent?.title}",
             type = CardType.PDF,
-            source = uploadedPdfFiles.firstOrNull()?.toString() ?: "",
-            tags = emptyList(),
+            tags = tags,
             createdAt = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis(),
             language = selectedLanguage,
@@ -260,16 +474,15 @@ class CreateCardViewModel @Inject constructor(
         )
     }
 
-    private fun createNoteCard(summary: String): Card {
-        val title = if (noteTitle.isNotEmpty()) noteTitle else "Untitled Note"
+    private fun createNoteCard(summary: String, tags: List<String> = emptyList()): Card {
         return Card(
             id = UUID.randomUUID().toString(),
-            title = title,
-            content = noteContent,
+            title = if (noteTitle.isNotBlank()) noteTitle else "Note: ${noteContent.take(30)}...",
             summary = summary,
+            content = noteContent,
+            source = "Note",
             type = CardType.NOTE,
-            source = "User created note",
-            tags = noteTags.toList(),
+            tags = tags,
             createdAt = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis(),
             language = selectedLanguage,
@@ -278,21 +491,71 @@ class CreateCardViewModel @Inject constructor(
         )
     }
 
-    private fun createAudioCard(summary: String): Card {
-        val title = if (audioTitle.isNotEmpty()) audioTitle else "Audio Recording"
+    private fun createAudioCard(summary: String, tags: List<String> = emptyList()): Card {
         return Card(
             id = UUID.randomUUID().toString(),
-            title = title,
-            content = "Transcription of audio", // This would be the transcription
+            title = if (audioTitle.isNotBlank()) audioTitle else "Audio Note",
             summary = summary,
+            content = "Audio transcription placeholder",
+            source = "Audio recording",
             type = CardType.AUDIO,
-            source = uploadedAudioFiles.joinToString(),
-            tags = emptyList(),
+            tags = tags,
             createdAt = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis(),
-            language = selectedTranscriptionLanguage,
+            language = selectedLanguage,
             aiModel = selectedAiModel,
             summaryType = selectedSummaryType
         )
+    }
+
+    fun selectSearchResult(result: WebSearchResult) {
+        selectedSearchResult = result
+    }
+
+    /**
+     * Perform a web search using the selected sources
+     */
+    fun performSearch() {
+        if (searchQuery.isBlank() || selectedSearchSources.isEmpty()) {
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                isSearching = true
+                searchError = null
+                searchResults.clear()
+                selectedSearchResult = null
+
+                android.util.Log.d("CreateCardViewModel", "Performing search for: $searchQuery in sources: $selectedSearchSources")
+
+                webSearchService.search(searchQuery, selectedSearchSources.toList())
+                    .onSuccess { results ->
+                        android.util.Log.d("CreateCardViewModel", "Search returned ${results.size} results")
+                        searchResults.addAll(results)
+
+                        if (results.isEmpty()) {
+                            searchError = "No results found. Try a different search term or select different sources."
+                        }
+                    }
+                    .onFailure { error ->
+                        searchError = "Error searching: ${error.message}"
+                        android.util.Log.e("CreateCardViewModel", "Error searching", error)
+                    }
+            } catch (e: Exception) {
+                searchError = "Error searching: ${e.message}"
+                android.util.Log.e("CreateCardViewModel", "Error searching", e)
+            } finally {
+                isSearching = false
+            }
+        }
+    }
+
+    fun clearNavigationState() {
+        navigateToSummaryReview = null
+    }
+
+    fun clearErrorMessage() {
+        errorMessage = null
     }
 }
