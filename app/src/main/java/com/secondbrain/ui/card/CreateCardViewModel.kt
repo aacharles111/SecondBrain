@@ -437,6 +437,15 @@ class CreateCardViewModel @Inject constructor(
 
     private fun createUrlCard(summary: String, tags: List<String> = emptyList()): Card {
         val urlContent = extractedUrlContent
+
+        // Log thumbnail URL for debugging
+        android.util.Log.d("CreateCardViewModel", "Creating URL card with thumbnail: ${urlContent?.thumbnailUrl}")
+
+        // Make sure the thumbnail URL is valid
+        val validatedThumbnailUrl = urlContent?.thumbnailUrl?.let {
+            if (it.startsWith("http")) it else null
+        }
+
         return Card(
             id = UUID.randomUUID().toString(),
             title = urlContent?.title ?: urlInput,
@@ -450,7 +459,7 @@ class CreateCardViewModel @Inject constructor(
             language = selectedLanguage,
             aiModel = selectedAiModel,
             summaryType = selectedSummaryType,
-            thumbnailUrl = urlContent?.thumbnailUrl
+            thumbnailUrl = validatedThumbnailUrl
         )
     }
 
