@@ -14,7 +14,9 @@ import com.secondbrain.data.service.ai.TitleGenerationOptions
 import com.secondbrain.data.service.ai.TranscriptionOptions
 import com.secondbrain.util.ApiAuthenticationException
 import com.secondbrain.util.ApiInvalidRequestException
+import com.secondbrain.util.ApiPaymentRequiredException
 import com.secondbrain.util.ApiRateLimitException
+import com.secondbrain.util.ApiServerOverloadException
 import com.secondbrain.util.ApiTemporaryErrorException
 import com.secondbrain.util.NetworkUtils
 import kotlinx.coroutines.Dispatchers
@@ -43,12 +45,12 @@ class OpenRouterApiClient {
         private const val MODELS_ENDPOINT = "$BASE_URL/models"
         private const val DEFAULT_MODEL = "anthropic/claude-3-sonnet"
     }
-    
+
     private val client: OkHttpClient by lazy {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BASIC
         }
-        
+
         OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -56,9 +58,9 @@ class OpenRouterApiClient {
             .writeTimeout(30, TimeUnit.SECONDS)
             .build()
     }
-    
+
     private val gson = Gson()
-    
+
     /**
      * Fetch available models from OpenRouter
      */
@@ -71,38 +73,74 @@ class OpenRouterApiClient {
                     .addHeader("Authorization", "Bearer $apiKey")
                     .get()
                     .build()
-                
+
                 // Execute request
                 val response = client.newCall(request).execute()
                 val responseBody = response.body?.string()
-                
+
                 if (!response.isSuccessful || responseBody == null) {
                     handleErrorResponse(response.code, responseBody)
                 }
-                
+
                 // Parse response
                 val jsonResponse = JSONObject(responseBody)
+
+                // Check for error response
+                if (jsonResponse.has("error")) {
+                    val error = jsonResponse.getJSONObject("error")
+                    val errorMessage = if (error.has("message")) error.getString("message") else "Unknown error"
+                    val errorCode = if (error.has("code")) error.getInt("code") else 400
+
+                    // Handle specific error codes
+                    val exception = when (errorCode) {
+                        401, 403 -> ApiAuthenticationException("Authentication error: $errorMessage")
+                        402 -> ApiPaymentRequiredException("Payment required: $errorMessage")
+                        429 -> ApiRateLimitException("Rate limit exceeded: $errorMessage")
+                        in 500..599 -> ApiTemporaryErrorException("Server error: $errorMessage")
+                        else -> IOException("API error: $errorMessage")
+                    }
+
+                    Log.e(TAG, "OpenRouter API error: $errorCode - $errorMessage")
+                    return@retryWithExponentialBackoff Result.failure(exception)
+                }
+
                 val data = jsonResponse.getJSONArray("data")
-                
                 val models = mutableListOf<AiModel>()
-                
+
                 for (i in 0 until data.length()) {
                     val modelObj = data.getJSONObject(i)
                     val id = modelObj.getString("id")
                     val name = modelObj.getString("name")
                     val contextLength = modelObj.optInt("context_length", 4096)
-                    
+
                     // Determine capabilities based on model properties
                     val capabilities = mutableSetOf<ModelCapability>()
+
+                    // Basic capabilities all models have
+                    capabilities.add(ModelCapability.TEXT_CONTENT)
                     capabilities.add(ModelCapability.TEXT_SUMMARIZATION)
                     capabilities.add(ModelCapability.TAG_GENERATION)
                     capabilities.add(ModelCapability.TITLE_GENERATION)
-                    
+                    capabilities.add(ModelCapability.WEB_CONTENT)
+
                     // Check if model supports vision
                     if (modelObj.optBoolean("vision", false)) {
                         capabilities.add(ModelCapability.IMAGE_UNDERSTANDING)
                     }
-                    
+
+                    // Add PDF processing for models with large context windows
+                    if (contextLength >= 16000) {
+                        capabilities.add(ModelCapability.PDF_PROCESSING)
+                    }
+
+                    // Add code understanding for specific models
+                    if (name.contains("code", ignoreCase = true) ||
+                        name.contains("gpt-4", ignoreCase = true) ||
+                        name.contains("claude", ignoreCase = true) ||
+                        name.contains("llama", ignoreCase = true)) {
+                        capabilities.add(ModelCapability.CODE_UNDERSTANDING)
+                    }
+
                     // Add model to list
                     models.add(
                         AiModel(
@@ -114,7 +152,7 @@ class OpenRouterApiClient {
                         )
                     )
                 }
-                
+
                 Result.success(models)
             } catch (e: Exception) {
                 Log.e(TAG, "Error fetching models from OpenRouter", e)
@@ -122,7 +160,7 @@ class OpenRouterApiClient {
             }
         }
     }
-    
+
     /**
      * Summarize text using OpenRouter
      */
@@ -142,7 +180,7 @@ class OpenRouterApiClient {
                     SummaryType.QUESTION_ANSWER -> "You are a helpful assistant that creates Q&A summaries. Format your summary as a series of questions and answers that cover the key points from the content."
                     SummaryType.KEY_FACTS -> "You are a helpful assistant that extracts key facts. Identify and list the most important facts from the content."
                 }
-                
+
                 // Create user prompt based on summary type
                 val userPrompt = when (options.summaryType) {
                     SummaryType.CONCISE -> "Create a concise summary of the following content in ${options.language}:"
@@ -151,14 +189,14 @@ class OpenRouterApiClient {
                     SummaryType.QUESTION_ANSWER -> "Create a Q&A summary of the following content in ${options.language}:"
                     SummaryType.KEY_FACTS -> "Extract the key facts from the following content in ${options.language}:"
                 }
-                
+
                 // Add custom instructions if provided
                 val fullUserPrompt = if (options.customInstructions.isNullOrEmpty()) {
                     "$userPrompt\n\n$content"
                 } else {
                     "$userPrompt\n\nAdditional instructions: ${options.customInstructions}\n\n$content"
                 }
-                
+
                 // Create request body
                 val requestBody = OpenRouterRequest(
                     model = modelId,
@@ -169,9 +207,9 @@ class OpenRouterApiClient {
                     temperature = 0.3,
                     maxTokens = options.maxLength ?: 1000
                 )
-                
+
                 val jsonBody = gson.toJson(requestBody)
-                
+
                 // Create request
                 val request = Request.Builder()
                     .url(CHAT_ENDPOINT)
@@ -181,27 +219,63 @@ class OpenRouterApiClient {
                     .addHeader("X-Title", "Second Brain App") // Required by OpenRouter
                     .post(jsonBody.toRequestBody("application/json".toMediaType()))
                     .build()
-                
+
                 // Execute request
                 val response = client.newCall(request).execute()
                 val responseBody = response.body?.string()
-                
+
                 if (!response.isSuccessful || responseBody == null) {
                     handleErrorResponse(response.code, responseBody)
                 }
-                
+
                 // Parse response
                 val jsonResponse = JSONObject(responseBody)
-                
+                Log.d(TAG, "OpenRouter API response: $responseBody")
+
+                // Check for error response
+                if (jsonResponse.has("error")) {
+                    val error = jsonResponse.getJSONObject("error")
+                    val errorMessage = if (error.has("message")) error.getString("message") else "Unknown error"
+                    val errorCode = if (error.has("code")) error.getInt("code") else 400
+
+                    // Handle specific error codes
+                    val exception = when (errorCode) {
+                        401, 403 -> ApiAuthenticationException("Authentication error: $errorMessage")
+                        402 -> ApiPaymentRequiredException("Payment required: $errorMessage")
+                        429 -> ApiRateLimitException("Rate limit exceeded: $errorMessage")
+                        in 500..599 -> ApiTemporaryErrorException("Server error: $errorMessage")
+                        else -> IOException("API error: $errorMessage")
+                    }
+
+                    Log.e(TAG, "OpenRouter API error: $errorCode - $errorMessage")
+                    return@retryWithExponentialBackoff Result.failure(exception)
+                }
+
                 // Extract the generated text
+                if (!jsonResponse.has("choices")) {
+                    Log.e(TAG, "OpenRouter API response missing 'choices' field: $responseBody")
+                    return@retryWithExponentialBackoff Result.failure(IOException("Invalid response format from OpenRouter API"))
+                }
+
                 val choices = jsonResponse.getJSONArray("choices")
                 if (choices.length() == 0) {
                     return@retryWithExponentialBackoff Result.failure(IOException("No response from OpenRouter API"))
                 }
-                
-                val message = choices.getJSONObject(0).getJSONObject("message")
+
+                val choice = choices.getJSONObject(0)
+                if (!choice.has("message")) {
+                    Log.e(TAG, "OpenRouter API response missing 'message' field in choice: $choice")
+                    return@retryWithExponentialBackoff Result.failure(IOException("Invalid response format from OpenRouter API"))
+                }
+
+                val message = choice.getJSONObject("message")
+                if (!message.has("content")) {
+                    Log.e(TAG, "OpenRouter API response missing 'content' field in message: $message")
+                    return@retryWithExponentialBackoff Result.failure(IOException("Invalid response format from OpenRouter API"))
+                }
+
                 val content = message.getString("content")
-                
+
                 Result.success(content)
             } catch (e: Exception) {
                 Log.e(TAG, "Error in OpenRouter API call", e)
@@ -209,7 +283,7 @@ class OpenRouterApiClient {
             }
         }
     }
-    
+
     /**
      * Extract text from an image using OpenRouter
      */
@@ -225,18 +299,18 @@ class OpenRouterApiClient {
                 // Convert URI to base64
                 val inputStream = context.contentResolver.openInputStream(imageUri)
                     ?: return@retryWithExponentialBackoff Result.failure(IOException("Could not open image file"))
-                
+
                 val bytes = inputStream.readBytes()
                 inputStream.close()
-                
+
                 val base64Image = android.util.Base64.encodeToString(bytes, android.util.Base64.DEFAULT)
-                
+
                 // Create system prompt
                 val systemPrompt = "You are a helpful assistant that extracts text from images. Extract all visible text from the image, maintaining the original formatting as much as possible."
-                
+
                 // Create user prompt
                 val userPrompt = "Extract all text from this image in ${options.language}."
-                
+
                 // Create request body with image
                 val requestBody = OpenRouterRequest(
                     model = modelId,
@@ -256,9 +330,9 @@ class OpenRouterApiClient {
                     temperature = 0.2,
                     maxTokens = 1000
                 )
-                
+
                 val jsonBody = gson.toJson(requestBody)
-                
+
                 // Create request
                 val request = Request.Builder()
                     .url(CHAT_ENDPOINT)
@@ -268,27 +342,63 @@ class OpenRouterApiClient {
                     .addHeader("X-Title", "Second Brain App") // Required by OpenRouter
                     .post(jsonBody.toRequestBody("application/json".toMediaType()))
                     .build()
-                
+
                 // Execute request
                 val response = client.newCall(request).execute()
                 val responseBody = response.body?.string()
-                
+
                 if (!response.isSuccessful || responseBody == null) {
                     handleErrorResponse(response.code, responseBody)
                 }
-                
+
                 // Parse response
                 val jsonResponse = JSONObject(responseBody)
-                
+                Log.d(TAG, "OpenRouter API response: $responseBody")
+
+                // Check for error response
+                if (jsonResponse.has("error")) {
+                    val error = jsonResponse.getJSONObject("error")
+                    val errorMessage = if (error.has("message")) error.getString("message") else "Unknown error"
+                    val errorCode = if (error.has("code")) error.getInt("code") else 400
+
+                    // Handle specific error codes
+                    val exception = when (errorCode) {
+                        401, 403 -> ApiAuthenticationException("Authentication error: $errorMessage")
+                        402 -> ApiPaymentRequiredException("Payment required: $errorMessage")
+                        429 -> ApiRateLimitException("Rate limit exceeded: $errorMessage")
+                        in 500..599 -> ApiTemporaryErrorException("Server error: $errorMessage")
+                        else -> IOException("API error: $errorMessage")
+                    }
+
+                    Log.e(TAG, "OpenRouter API error: $errorCode - $errorMessage")
+                    return@retryWithExponentialBackoff Result.failure(exception)
+                }
+
                 // Extract the generated text
+                if (!jsonResponse.has("choices")) {
+                    Log.e(TAG, "OpenRouter API response missing 'choices' field: $responseBody")
+                    return@retryWithExponentialBackoff Result.failure(IOException("Invalid response format from OpenRouter API"))
+                }
+
                 val choices = jsonResponse.getJSONArray("choices")
                 if (choices.length() == 0) {
                     return@retryWithExponentialBackoff Result.failure(IOException("No response from OpenRouter API"))
                 }
-                
-                val message = choices.getJSONObject(0).getJSONObject("message")
+
+                val choice = choices.getJSONObject(0)
+                if (!choice.has("message")) {
+                    Log.e(TAG, "OpenRouter API response missing 'message' field in choice: $choice")
+                    return@retryWithExponentialBackoff Result.failure(IOException("Invalid response format from OpenRouter API"))
+                }
+
+                val message = choice.getJSONObject("message")
+                if (!message.has("content")) {
+                    Log.e(TAG, "OpenRouter API response missing 'content' field in message: $message")
+                    return@retryWithExponentialBackoff Result.failure(IOException("Invalid response format from OpenRouter API"))
+                }
+
                 val content = message.getString("content")
-                
+
                 Result.success(content)
             } catch (e: Exception) {
                 Log.e(TAG, "Error in OpenRouter Vision API call", e)
@@ -296,7 +406,7 @@ class OpenRouterApiClient {
             }
         }
     }
-    
+
     /**
      * Generate tags from content
      */
@@ -310,10 +420,10 @@ class OpenRouterApiClient {
             try {
                 // Create system prompt
                 val systemPrompt = "You are a helpful assistant that generates relevant tags for content. Generate tags that accurately represent the main topics, concepts, and entities in the content."
-                
+
                 // Create user prompt
-                val userPrompt = "Generate up to ${options.maxTags} tags for the following content in ${options.language}. Return only the tags as a comma-separated list, without any additional text or explanation:\n\n$content"
-                
+                val userPrompt = "Generate between 10 and 20 relevant tags for the following content in ${options.language}. The tags should cover all important topics, concepts, and entities in the content. Return only the tags as a comma-separated list, without any additional text or explanation:\n\n$content"
+
                 // Create request body
                 val requestBody = OpenRouterRequest(
                     model = modelId,
@@ -324,9 +434,9 @@ class OpenRouterApiClient {
                     temperature = 0.3,
                     maxTokens = 100
                 )
-                
+
                 val jsonBody = gson.toJson(requestBody)
-                
+
                 // Create request
                 val request = Request.Builder()
                     .url(CHAT_ENDPOINT)
@@ -336,33 +446,69 @@ class OpenRouterApiClient {
                     .addHeader("X-Title", "Second Brain App") // Required by OpenRouter
                     .post(jsonBody.toRequestBody("application/json".toMediaType()))
                     .build()
-                
+
                 // Execute request
                 val response = client.newCall(request).execute()
                 val responseBody = response.body?.string()
-                
+
                 if (!response.isSuccessful || responseBody == null) {
                     handleErrorResponse(response.code, responseBody)
                 }
-                
+
                 // Parse response
                 val jsonResponse = JSONObject(responseBody)
-                
+                Log.d(TAG, "OpenRouter API response: $responseBody")
+
+                // Check for error response
+                if (jsonResponse.has("error")) {
+                    val error = jsonResponse.getJSONObject("error")
+                    val errorMessage = if (error.has("message")) error.getString("message") else "Unknown error"
+                    val errorCode = if (error.has("code")) error.getInt("code") else 400
+
+                    // Handle specific error codes
+                    val exception = when (errorCode) {
+                        401, 403 -> ApiAuthenticationException("Authentication error: $errorMessage")
+                        402 -> ApiPaymentRequiredException("Payment required: $errorMessage")
+                        429 -> ApiRateLimitException("Rate limit exceeded: $errorMessage")
+                        in 500..599 -> ApiTemporaryErrorException("Server error: $errorMessage")
+                        else -> IOException("API error: $errorMessage")
+                    }
+
+                    Log.e(TAG, "OpenRouter API error: $errorCode - $errorMessage")
+                    return@retryWithExponentialBackoff Result.failure(exception)
+                }
+
                 // Extract the generated text
+                if (!jsonResponse.has("choices")) {
+                    Log.e(TAG, "OpenRouter API response missing 'choices' field: $responseBody")
+                    return@retryWithExponentialBackoff Result.failure(IOException("Invalid response format from OpenRouter API"))
+                }
+
                 val choices = jsonResponse.getJSONArray("choices")
                 if (choices.length() == 0) {
                     return@retryWithExponentialBackoff Result.failure(IOException("No response from OpenRouter API"))
                 }
-                
-                val message = choices.getJSONObject(0).getJSONObject("message")
+
+                val choice = choices.getJSONObject(0)
+                if (!choice.has("message")) {
+                    Log.e(TAG, "OpenRouter API response missing 'message' field in choice: $choice")
+                    return@retryWithExponentialBackoff Result.failure(IOException("Invalid response format from OpenRouter API"))
+                }
+
+                val message = choice.getJSONObject("message")
+                if (!message.has("content")) {
+                    Log.e(TAG, "OpenRouter API response missing 'content' field in message: $message")
+                    return@retryWithExponentialBackoff Result.failure(IOException("Invalid response format from OpenRouter API"))
+                }
+
                 val content = message.getString("content")
-                
+
                 // Parse tags from comma-separated list
                 val tags = content.split(",")
                     .map { it.trim() }
                     .filter { it.isNotEmpty() }
                     .take(options.maxTags)
-                
+
                 Result.success(tags)
             } catch (e: Exception) {
                 Log.e(TAG, "Error in OpenRouter API call for tag generation", e)
@@ -370,7 +516,7 @@ class OpenRouterApiClient {
             }
         }
     }
-    
+
     /**
      * Generate a title from content
      */
@@ -384,10 +530,10 @@ class OpenRouterApiClient {
             try {
                 // Create system prompt
                 val systemPrompt = "You are a helpful assistant that generates concise, descriptive titles for content. Generate a title that accurately represents the main topic or theme of the content."
-                
+
                 // Create user prompt
                 val userPrompt = "Generate a title for the following content in ${options.language}. The title should be concise (maximum ${options.maxLength} characters) and descriptive. Return only the title, without any additional text or explanation:\n\n$content"
-                
+
                 // Create request body
                 val requestBody = OpenRouterRequest(
                     model = modelId,
@@ -398,9 +544,9 @@ class OpenRouterApiClient {
                     temperature = 0.3,
                     maxTokens = 50
                 )
-                
+
                 val jsonBody = gson.toJson(requestBody)
-                
+
                 // Create request
                 val request = Request.Builder()
                     .url(CHAT_ENDPOINT)
@@ -410,27 +556,63 @@ class OpenRouterApiClient {
                     .addHeader("X-Title", "Second Brain App") // Required by OpenRouter
                     .post(jsonBody.toRequestBody("application/json".toMediaType()))
                     .build()
-                
+
                 // Execute request
                 val response = client.newCall(request).execute()
                 val responseBody = response.body?.string()
-                
+
                 if (!response.isSuccessful || responseBody == null) {
                     handleErrorResponse(response.code, responseBody)
                 }
-                
+
                 // Parse response
                 val jsonResponse = JSONObject(responseBody)
-                
+                Log.d(TAG, "OpenRouter API response: $responseBody")
+
+                // Check for error response
+                if (jsonResponse.has("error")) {
+                    val error = jsonResponse.getJSONObject("error")
+                    val errorMessage = if (error.has("message")) error.getString("message") else "Unknown error"
+                    val errorCode = if (error.has("code")) error.getInt("code") else 400
+
+                    // Handle specific error codes
+                    val exception = when (errorCode) {
+                        401, 403 -> ApiAuthenticationException("Authentication error: $errorMessage")
+                        402 -> ApiPaymentRequiredException("Payment required: $errorMessage")
+                        429 -> ApiRateLimitException("Rate limit exceeded: $errorMessage")
+                        in 500..599 -> ApiTemporaryErrorException("Server error: $errorMessage")
+                        else -> IOException("API error: $errorMessage")
+                    }
+
+                    Log.e(TAG, "OpenRouter API error: $errorCode - $errorMessage")
+                    return@retryWithExponentialBackoff Result.failure(exception)
+                }
+
                 // Extract the generated text
+                if (!jsonResponse.has("choices")) {
+                    Log.e(TAG, "OpenRouter API response missing 'choices' field: $responseBody")
+                    return@retryWithExponentialBackoff Result.failure(IOException("Invalid response format from OpenRouter API"))
+                }
+
                 val choices = jsonResponse.getJSONArray("choices")
                 if (choices.length() == 0) {
                     return@retryWithExponentialBackoff Result.failure(IOException("No response from OpenRouter API"))
                 }
-                
-                val message = choices.getJSONObject(0).getJSONObject("message")
+
+                val choice = choices.getJSONObject(0)
+                if (!choice.has("message")) {
+                    Log.e(TAG, "OpenRouter API response missing 'message' field in choice: $choice")
+                    return@retryWithExponentialBackoff Result.failure(IOException("Invalid response format from OpenRouter API"))
+                }
+
+                val message = choice.getJSONObject("message")
+                if (!message.has("content")) {
+                    Log.e(TAG, "OpenRouter API response missing 'content' field in message: $message")
+                    return@retryWithExponentialBackoff Result.failure(IOException("Invalid response format from OpenRouter API"))
+                }
+
                 val title = message.getString("content").trim()
-                
+
                 Result.success(title)
             } catch (e: Exception) {
                 Log.e(TAG, "Error in OpenRouter API call for title generation", e)
@@ -438,7 +620,7 @@ class OpenRouterApiClient {
             }
         }
     }
-    
+
     /**
      * Handle error responses from the OpenRouter API
      */
@@ -462,16 +644,26 @@ class OpenRouterApiClient {
         } catch (e: Exception) {
             "Error parsing error response: ${e.message}"
         }
-        
-        throw when (code) {
-            401, 403 -> ApiAuthenticationException("Authentication error: $errorMessage")
-            400 -> ApiInvalidRequestException("Invalid request: $errorMessage")
-            429 -> ApiRateLimitException("Rate limit exceeded: $errorMessage")
-            in 500..599 -> ApiTemporaryErrorException("Server error: $errorMessage")
+
+        // Check for server overload conditions in the error message
+        val isServerOverloaded = errorMessage.contains("server overload", ignoreCase = true) ||
+                errorMessage.contains("too many requests", ignoreCase = true) ||
+                errorMessage.contains("capacity", ignoreCase = true) ||
+                errorMessage.contains("busy", ignoreCase = true) ||
+                errorMessage.contains("try again later", ignoreCase = true) ||
+                errorMessage.contains("queue", ignoreCase = true)
+
+        throw when {
+            isServerOverloaded -> ApiServerOverloadException("OpenRouter server is currently overloaded. Please try again later.")
+            code == 401 || code == 403 -> ApiAuthenticationException("Authentication error: $errorMessage")
+            code == 400 -> ApiInvalidRequestException("Invalid request: $errorMessage")
+            code == 402 -> ApiPaymentRequiredException("Payment required: $errorMessage")
+            code == 429 -> ApiRateLimitException("Rate limit exceeded: $errorMessage")
+            code in 500..599 -> ApiTemporaryErrorException("Server error: $errorMessage")
             else -> IOException("HTTP error $code: $errorMessage")
         }
     }
-    
+
     // Data classes for API requests and responses
     data class OpenRouterRequest(
         val model: String,
@@ -479,18 +671,18 @@ class OpenRouterApiClient {
         val temperature: Double = 0.7,
         @SerializedName("max_tokens") val maxTokens: Int = 1000
     )
-    
+
     data class OpenRouterMessage(
         val role: String,
         val content: Any // Can be String or List<OpenRouterContent>
     )
-    
+
     data class OpenRouterContent(
         val type: String, // "text" or "image_url"
         val text: String? = null,
         @SerializedName("image_url") val imageUrl: ImageUrl? = null
     )
-    
+
     data class ImageUrl(
         val url: String
     )

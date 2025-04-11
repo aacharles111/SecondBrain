@@ -3,24 +3,39 @@ package com.secondbrain.ui.card
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.secondbrain.R
+import com.secondbrain.data.model.WebSearchResult
 import com.secondbrain.ui.theme.SecondBrainTheme
 import dagger.hilt.android.AndroidEntryPoint
 import android.net.Uri
+import android.widget.Toast
 
 @AndroidEntryPoint
 class CreateCardActivity : ComponentActivity() {
@@ -81,6 +96,19 @@ fun CreateCardScreen(
                 TextButton(onClick = { viewModel.errorMessage = null }) {
                     Text("OK")
                 }
+            },
+            // Add retry button for retryable errors
+            dismissButton = {
+                if (error.contains("server is currently overloaded") ||
+                    error.contains("Rate limit exceeded") ||
+                    error.contains("Temporary server error")) {
+                    TextButton(onClick = {
+                        viewModel.errorMessage = null
+                        viewModel.retryLastOperation()
+                    }) {
+                        Text("Retry")
+                    }
+                }
             }
         )
     }
@@ -89,6 +117,7 @@ fun CreateCardScreen(
     val context = LocalContext.current
     viewModel.navigateToSummaryReview?.let { cardId ->
         LaunchedEffect(cardId) {
+            android.util.Log.d("CreateCardScreen", "Navigating to SummaryReviewActivity with card ID: $cardId")
             val intent = android.content.Intent(context, SummaryReviewActivity::class.java).apply {
                 putExtra(SummaryReviewActivity.EXTRA_CARD_ID, cardId)
             }
@@ -268,6 +297,24 @@ fun UrlTab(viewModel: CreateCardViewModel) {
             }
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Summary toggle
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Generate AI Summary",
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Switch(
+                checked = viewModel.urlSummaryEnabled,
+                onCheckedChange = { viewModel.urlSummaryEnabled = it }
+            )
+        }
+
         Spacer(modifier = Modifier.weight(1f))
 
         // Tip card
@@ -285,22 +332,44 @@ fun UrlTab(viewModel: CreateCardViewModel) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchTab(viewModel: CreateCardViewModel) {
+    val context = LocalContext.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        OutlinedTextField(
-            value = viewModel.searchQuery,
-            onValueChange = { viewModel.searchQuery = it },
-            label = { Text("Search anything...") },
-            modifier = Modifier.fillMaxWidth()
-        )
+        // Search bar with search button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = viewModel.searchQuery,
+                onValueChange = { viewModel.searchQuery = it },
+                label = { Text("Search anything...") },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { viewModel.performSearch() })
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Button(
+                onClick = { viewModel.performSearch() },
+                enabled = viewModel.searchQuery.isNotEmpty() && !viewModel.isSearching
+            ) {
+                Icon(Icons.Default.Search, contentDescription = "Search")
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Sources selection
         Text(
             text = "Sources:",
             style = MaterialTheme.typography.titleMedium
@@ -308,32 +377,39 @@ fun SearchTab(viewModel: CreateCardViewModel) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Source checkboxes
-        viewModel.searchSources.forEach { source ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Start
-            ) {
-                Checkbox(
-                    checked = viewModel.selectedSearchSources.contains(source),
-                    onCheckedChange = { checked ->
-                        if (checked) {
-                            viewModel.selectedSearchSources.add(source)
+        // Source checkboxes in a row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            viewModel.searchSources.forEach { source ->
+                FilterChip(
+                    selected = viewModel.selectedSearchSources.contains(source),
+                    onClick = {
+                        if (viewModel.selectedSearchSources.contains(source)) {
+                            if (viewModel.selectedSearchSources.size > 1) { // Ensure at least one source is selected
+                                viewModel.selectedSearchSources.remove(source)
+                            }
                         } else {
-                            viewModel.selectedSearchSources.remove(source)
+                            viewModel.selectedSearchSources.add(source)
+                        }
+                    },
+                    label = { Text(source) },
+                    leadingIcon = {
+                        if (viewModel.selectedSearchSources.contains(source)) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                     }
-                )
-                Text(
-                    text = source,
-                    modifier = Modifier.padding(start = 8.dp, top = 12.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
         // Language selector
+        Spacer(modifier = Modifier.height(16.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Start
@@ -360,28 +436,274 @@ fun SearchTab(viewModel: CreateCardViewModel) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Results section
-        Text(
-            text = "Results:",
-            style = MaterialTheme.typography.titleMedium
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            shape = MaterialTheme.shapes.medium
+        // Search results or placeholder
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "No search results yet",
-                    style = MaterialTheme.typography.bodyLarge
+            when {
+                viewModel.isSearching -> {
+                    // Loading indicator
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Searching...")
+                    }
+                }
+                viewModel.searchError != null -> {
+                    // Error message
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "Error",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = viewModel.searchError ?: "Unknown error",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            TextButton(onClick = { viewModel.searchError = null }) {
+                                Text("Dismiss")
+                            }
+                        }
+                    }
+                }
+                viewModel.searchResults.isNotEmpty() -> {
+                    // Search results
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(viewModel.searchResults) { result ->
+                            SearchResultItem(
+                                result = result,
+                                isSelected = result == viewModel.selectedSearchResult,
+                                onSelect = { viewModel.selectSearchResult(result) }
+                            )
+                        }
+                    }
+                }
+                viewModel.searchQuery.isNotEmpty() -> {
+                    // No results for query
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "No results found",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Try a different search term or select different sources.",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    // Initial state
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "Search the web",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Enter a query above to search from selected sources.",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Summary toggle
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Generate AI Summary",
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Switch(
+                checked = viewModel.searchSummaryEnabled,
+                onCheckedChange = { viewModel.searchSummaryEnabled = it }
+            )
+        }
+
+        // Selected result info
+        viewModel.selectedSearchResult?.let { result ->
+            Spacer(modifier = Modifier.height(16.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Selected: ${result.title}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Source: ${result.source}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(
+                            onClick = { viewModel.selectedSearchResult = null }
+                        ) {
+                            Text("Deselect")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        val uriHandler = LocalUriHandler.current
+                        TextButton(
+                            onClick = {
+                                try {
+                                    uriHandler.openUri(result.url)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Could not open URL", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        ) {
+                            Text("Open URL")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SearchResultItem(
+    result: WebSearchResult,
+    isSelected: Boolean,
+    onSelect: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isSelected) 4.dp else 1.dp
+        ),
+        onClick = onSelect
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Source icon or thumbnail
+            if (result.thumbnailUrl != null) {
+                AsyncImage(
+                    model = result.thumbnailUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                    contentScale = ContentScale.Crop
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+            } else {
+                // Source icon
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(
+                            when (result.source) {
+                                "Google" -> MaterialTheme.colorScheme.primary
+                                "Wikipedia" -> Color(0xFF3366CC)
+                                "WikiData" -> Color(0xFF339966)
+                                else -> MaterialTheme.colorScheme.secondary
+                            }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = when (result.source) {
+                            "Google" -> Icons.Default.Search
+                            "Wikipedia" -> Icons.Default.Info
+                            "WikiData" -> Icons.Default.Storage
+                            else -> Icons.Default.Link
+                        },
+                        contentDescription = null,
+                        tint = Color.White
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Enter a query above to search from selected sources.",
-                    style = MaterialTheme.typography.bodyMedium
+                    text = result.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = result.snippet,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = result.source,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            if (isSelected) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Selected",
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -562,6 +884,24 @@ fun PdfTab(viewModel: CreateCardViewModel) {
                 Text(viewModel.selectedLanguage)
             }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Summary toggle
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Generate AI Summary",
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Switch(
+                checked = viewModel.pdfSummaryEnabled,
+                onCheckedChange = { viewModel.pdfSummaryEnabled = it }
+            )
+        }
     }
 }
 
@@ -633,6 +973,24 @@ fun NoteTab(viewModel: CreateCardViewModel) {
                 .fillMaxWidth()
                 .weight(1f)
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Summary toggle
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Generate AI Summary",
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Switch(
+                checked = viewModel.noteSummaryEnabled,
+                onCheckedChange = { viewModel.noteSummaryEnabled = it }
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -762,6 +1120,24 @@ fun AudioTab(viewModel: CreateCardViewModel) {
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(start = 16.dp)
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Summary toggle
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Generate AI Summary",
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Switch(
+                checked = viewModel.audioSummaryEnabled,
+                onCheckedChange = { viewModel.audioSummaryEnabled = it }
+            )
+        }
     }
 }
 
@@ -807,7 +1183,7 @@ fun BottomBar(viewModel: CreateCardViewModel) {
 
         // Create button
         Button(
-            onClick = { viewModel.createCard() },
+            onClick = { viewModel.createCardFromActiveTab() },
             enabled = !viewModel.isLoading
         ) {
             if (viewModel.isLoading) {

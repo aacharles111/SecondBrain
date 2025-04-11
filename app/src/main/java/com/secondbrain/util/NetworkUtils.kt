@@ -9,10 +9,10 @@ import kotlin.math.pow
  */
 object NetworkUtils {
     private const val TAG = "NetworkUtils"
-    
+
     /**
      * Retry a suspending operation with exponential backoff
-     * 
+     *
      * @param times Number of retry attempts
      * @param initialDelayMs Initial delay in milliseconds
      * @param maxDelayMs Maximum delay in milliseconds
@@ -31,39 +31,39 @@ object NetworkUtils {
         repeat(times) { attempt ->
             // Execute the operation
             val result = block()
-            
+
             // If successful or not a retryable error, return the result
             if (result.isSuccess || !isRetryableError(result.exceptionOrNull())) {
                 return result
             }
-            
+
             // Log the retry attempt
             Log.d(TAG, "Retry attempt ${attempt + 1}/$times after $currentDelay ms")
-            
+
             // Wait before next retry
             delay(currentDelay)
-            
+
             // Increase the delay for next retry, but don't exceed maxDelayMs
             currentDelay = (currentDelay * factor).toLong().coerceAtMost(maxDelayMs)
         }
-        
+
         // Last attempt
         return block()
     }
-    
+
     /**
      * Check if an error is retryable
      */
     private fun isRetryableError(error: Throwable?): Boolean {
         if (error == null) return false
-        
+
         return when (error) {
             // Network errors
             is java.net.SocketTimeoutException,
             is java.net.ConnectException,
             is java.net.UnknownHostException,
             is java.io.IOException,
-            
+
             // HTTP errors (5xx)
             is retrofit2.HttpException -> {
                 if (error is retrofit2.HttpException) {
@@ -74,15 +74,16 @@ object NetworkUtils {
                     true
                 }
             }
-            
+
             // Other retryable errors
             is ApiRateLimitException,
-            is ApiTemporaryErrorException -> true
-            
+            is ApiTemporaryErrorException,
+            is ApiServerOverloadException -> true
+
             // Non-retryable errors
             is ApiAuthenticationException,
             is ApiInvalidRequestException -> false
-            
+
             // Default to not retry for unknown errors
             else -> false
         }

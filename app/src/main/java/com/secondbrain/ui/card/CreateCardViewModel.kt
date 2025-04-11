@@ -132,6 +132,9 @@ class CreateCardViewModel @Inject constructor(
             return
         }
 
+        // Save operation for retry
+        lastOperation = { extractUrlContent(context) }
+
         isLoading = true
         errorMessage = null
         viewModelScope.launch {
@@ -164,6 +167,9 @@ class CreateCardViewModel @Inject constructor(
     }
 
     fun extractPdfContent(context: Context, uri: Uri) {
+        // Save operation for retry
+        lastOperation = { extractPdfContent(context, uri) }
+
         isLoading = true
         errorMessage = null
         viewModelScope.launch {
@@ -221,6 +227,9 @@ class CreateCardViewModel @Inject constructor(
             return
         }
 
+        // Save operation for retry
+        lastOperation = { createNoteCard() }
+
         isLoading = true
         errorMessage = null
         generateSummaryAndCreateCard(noteContent)
@@ -232,6 +241,9 @@ class CreateCardViewModel @Inject constructor(
     }
 
     fun createCardFromActiveTab() {
+        // Save operation for retry
+        lastOperation = { createCardFromActiveTab() }
+
         errorMessage = null
         when {
             urlInput.isNotEmpty() -> {
@@ -352,6 +364,9 @@ class CreateCardViewModel @Inject constructor(
 
                             // Provide more user-friendly error messages
                             errorMessage = when (error) {
+                                is com.secondbrain.util.ApiServerOverloadException -> {
+                                    "The AI server is currently overloaded. Please try again in a few moments."
+                                }
                                 is com.secondbrain.util.ApiPaymentRequiredException -> {
                                     "OpenRouter requires more credits: ${error.message?.substringAfter("Payment required: ")}"
                                 }
@@ -360,6 +375,9 @@ class CreateCardViewModel @Inject constructor(
                                 }
                                 is com.secondbrain.util.ApiAuthenticationException -> {
                                     "Authentication error. Please check your API key in settings."
+                                }
+                                is com.secondbrain.util.ApiTemporaryErrorException -> {
+                                    "Temporary server error. Please try again in a few moments."
                                 }
                                 else -> "Error generating summary: ${error.message}"
                             }
@@ -557,5 +575,12 @@ class CreateCardViewModel @Inject constructor(
 
     fun clearErrorMessage() {
         errorMessage = null
+    }
+
+    // Last operation state for retry functionality
+    private var lastOperation: (() -> Unit)? = null
+
+    fun retryLastOperation() {
+        lastOperation?.invoke()
     }
 }

@@ -27,6 +27,7 @@ class SummaryReviewViewModel @Inject constructor(
     var title by mutableStateOf("")
     var summary by mutableStateOf("")
     var sourceType by mutableStateOf("")
+    var sourceUrl by mutableStateOf("")
     var language by mutableStateOf("English")
     var aiModel by mutableStateOf("Gemini")
     val tags = mutableStateListOf<String>()
@@ -41,14 +42,20 @@ class SummaryReviewViewModel @Inject constructor(
     // Loading state
     var isLoading by mutableStateOf(false)
 
-    init {
-        // Load the card data from the savedStateHandle
-        savedStateHandle.get<String>("cardId")?.let { id ->
-            if (id.isNotEmpty()) {
-                loadCard(id)
-            } else {
-                errorMessage = "Invalid card ID"
-            }
+    // Last operation state for retry functionality
+    private var lastOperation: (() -> Unit)? = null
+
+    fun retryLastOperation() {
+        lastOperation?.invoke()
+    }
+
+    // This method is called directly from the SummaryReviewScreen
+    fun loadCardById(id: String) {
+        android.util.Log.d("SummaryReviewViewModel", "loadCardById called with id: $id")
+        if (id.isNotEmpty()) {
+            loadCard(id)
+        } else {
+            errorMessage = "Invalid card ID"
         }
     }
 
@@ -56,19 +63,39 @@ class SummaryReviewViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 isLoading = true
+                android.util.Log.d("SummaryReviewViewModel", "loadCard: Starting to load card with id: $id")
                 cardRepository.getCardById(id).collect { card ->
                     if (card != null) {
+                        android.util.Log.d("SummaryReviewViewModel", "loadCard: Card found: ${card.id}, title: ${card.title}, summary length: ${card.summary.length}")
                         cardId = card.id
                         title = card.title
                         summary = card.summary
                         sourceType = card.type.name
+                        sourceUrl = card.source
                         language = card.language
                         aiModel = card.aiModel
                         tags.clear()
                         tags.addAll(card.tags)
                         originalContent = card.content
                         summaryType = card.summaryType
+
+                        // Check if summary is empty and try to regenerate it
+                        if (summary.isBlank()) {
+                            android.util.Log.d("SummaryReviewViewModel", "loadCard: Summary is empty, attempting to regenerate")
+                            regenerateSummary()
+                        }
+
+                        // If there are no tags, generate them
+                        if (tags.isEmpty()) {
+                            generateTags()
+                        }
+
+                        // If there's no title, generate one
+                        if (title.isEmpty() || title.startsWith("Untitled") || title.startsWith("Search:")) {
+                            generateTitle()
+                        }
                     } else {
+                        android.util.Log.e("SummaryReviewViewModel", "loadCard: Card not found for id: $id")
                         errorMessage = "Card not found"
                     }
                     isLoading = false
@@ -82,39 +109,154 @@ class SummaryReviewViewModel @Inject constructor(
     }
 
     fun regenerateSummary() {
+        // Save operation for retry
+        lastOperation = { regenerateSummary() }
+
         viewModelScope.launch {
-            aiService.summarize(
-                content = originalContent,
-                summaryType = summaryType,
-                language = language,
-                aiModel = aiModel
-            ).onSuccess { newSummary ->
-                summary = newSummary
-            }.onFailure { error ->
-                // Handle error
-                summary += "\n\n[Error regenerating summary: ${error.message}]"
+            try {
+                isLoading = true
+                android.util.Log.d("SummaryReviewViewModel", "regenerateSummary: Attempting to regenerate summary")
+
+                aiService.summarize(
+                    content = originalContent,
+                    summaryType = summaryType,
+                    language = language,
+                    aiModel = aiModel
+                ).onSuccess { newSummary ->
+                    if (newSummary.isBlank()) {
+                        android.util.Log.e("SummaryReviewViewModel", "regenerateSummary: Generated summary is empty")
+                        errorMessage = "Failed to generate summary. Please try again or use a different AI model."
+                    } else {
+                        android.util.Log.d("SummaryReviewViewModel", "regenerateSummary: Successfully generated new summary of length ${newSummary.length}")
+                        summary = newSummary
+
+                        // Save the updated card with the new summary
+                        saveCard()
+                    }
+                }.onFailure { error ->
+                    // Handle error
+                    android.util.Log.e("SummaryReviewViewModel", "Error regenerating summary", error)
+
+                    // Provide more user-friendly error messages
+                    errorMessage = when (error) {
+                        is com.secondbrain.util.ApiServerOverloadException -> {
+                            "The AI server is currently overloaded. Please try again in a few moments."
+                        }
+                        is com.secondbrain.util.ApiPaymentRequiredException -> {
+                            "OpenRouter requires more credits: ${error.message?.substringAfter("Payment required: ")}"
+                        }
+                        is com.secondbrain.util.ApiRateLimitException -> {
+                            "Rate limit exceeded. Please try again later."
+                        }
+                        is com.secondbrain.util.ApiAuthenticationException -> {
+                            "Authentication error. Please check your API key in settings."
+                        }
+                        is com.secondbrain.util.ApiTemporaryErrorException -> {
+                            "Temporary server error. Please try again in a few moments."
+                        }
+                        else -> "Error generating summary: ${error.message}"
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("SummaryReviewViewModel", "Error in regenerateSummary", e)
+                errorMessage = "Error regenerating summary: ${e.message}"
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    /**
+     * Generate tags for the card content
+     */
+    fun generateTags() {
+        viewModelScope.launch {
+            try {
+                isLoading = true
+                android.util.Log.d("SummaryReviewViewModel", "generateTags: Attempting to generate tags")
+
+                aiService.extractTags(
+                    content = originalContent,
+                    language = language,
+                    aiModel = aiModel,
+                    maxTags = 15 // Generate between 10-20 tags
+                ).onSuccess { newTags ->
+                    android.util.Log.d("SummaryReviewViewModel", "generateTags: Successfully generated ${newTags.size} tags")
+                    tags.clear()
+                    tags.addAll(newTags)
+
+                    // Save the updated card with the new tags
+                    saveCard()
+                }.onFailure { error ->
+                    android.util.Log.e("SummaryReviewViewModel", "Error generating tags", error)
+                    errorMessage = "Error generating tags: ${error.message}"
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("SummaryReviewViewModel", "Error generating tags", e)
+                errorMessage = "Error generating tags: ${e.message}"
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    /**
+     * Generate a title for the card content
+     */
+    fun generateTitle() {
+        viewModelScope.launch {
+            try {
+                aiService.generateTitle(
+                    content = originalContent,
+                    language = language,
+                    aiModel = aiModel
+                ).onSuccess { newTitle ->
+                    title = newTitle
+                }.onFailure { error ->
+                    android.util.Log.e("SummaryReviewViewModel", "Error generating title", error)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("SummaryReviewViewModel", "Error generating title", e)
             }
         }
     }
 
     fun saveCard() {
-        viewModelScope.launch {
-            val card = Card(
-                id = cardId,
-                title = title,
-                content = originalContent,
-                summary = summary,
-                type = CardType.valueOf(sourceType),
-                source = "Source placeholder", // This would be the actual source
-                tags = tags.toList(),
-                createdAt = System.currentTimeMillis(),
-                updatedAt = System.currentTimeMillis(),
-                language = language,
-                aiModel = aiModel,
-                summaryType = summaryType
-            )
+        // Save operation for retry
+        lastOperation = { saveCard() }
 
-            cardRepository.updateCard(card)
+        viewModelScope.launch {
+            try {
+                isLoading = true
+                val card = Card(
+                    id = cardId,
+                    title = title,
+                    content = originalContent,
+                    summary = summary,
+                    type = CardType.valueOf(sourceType),
+                    source = sourceUrl,
+                    tags = tags.toList(),
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis(),
+                    language = language,
+                    aiModel = aiModel,
+                    summaryType = summaryType
+                )
+
+                cardRepository.updateCard(card).onSuccess {
+                    // Card saved successfully
+                    android.util.Log.d("SummaryReviewViewModel", "Card saved successfully")
+                }.onFailure { error ->
+                    // Handle error
+                    errorMessage = "Error saving card: ${error.message}"
+                    android.util.Log.e("SummaryReviewViewModel", "Error saving card", error)
+                }
+            } catch (e: Exception) {
+                errorMessage = "Error saving card: ${e.message}"
+                android.util.Log.e("SummaryReviewViewModel", "Error saving card", e)
+            } finally {
+                isLoading = false
+            }
         }
     }
 }
