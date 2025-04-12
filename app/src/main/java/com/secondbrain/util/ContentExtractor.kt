@@ -2,6 +2,7 @@ package com.secondbrain.util
 
 import android.content.Context
 import android.util.Log
+import com.secondbrain.data.service.youtube.YouTubeContentProcessor
 import com.secondbrain.data.service.youtube.YouTubeService
 import com.secondbrain.data.service.youtube.YouTubeTranscriptScraper
 import com.secondbrain.data.service.youtube.YouTubeVideoDetails
@@ -22,7 +23,8 @@ import javax.inject.Singleton
 class ContentExtractor @Inject constructor(
     @ApplicationContext private val context: Context,
     private val youTubeService: YouTubeService,
-    private val youTubeTranscriptScraper: YouTubeTranscriptScraper
+    private val youTubeTranscriptScraper: YouTubeTranscriptScraper,
+    private val youTubeContentProcessor: YouTubeContentProcessor
 ) {
 
     companion object {
@@ -111,131 +113,11 @@ class ContentExtractor @Inject constructor(
     }
 
     /**
-     * Extract content from a YouTube video
+     * Extract content from a YouTube video using the enhanced YouTube content processor
      */
     private suspend fun extractYouTubeContent(url: String): Result<UrlContent> {
-        try {
-            // Extract video ID using the YouTube service
-            val videoId = youTubeService.extractVideoId(url) ?: ""
-
-            if (videoId.isEmpty()) {
-                return Result.failure(IOException("Could not extract YouTube video ID from URL: $url"))
-            }
-
-            // Get video details from the YouTube API
-            val videoDetailsResult = youTubeService.getVideoDetails(videoId)
-
-            if (videoDetailsResult.isFailure) {
-                // Fallback to basic extraction if API fails
-                return extractYouTubeContentBasic(url, videoId)
-            }
-
-            val videoDetails = videoDetailsResult.getOrNull()!!
-
-            // Try to get transcript
-            val transcriptResult = youTubeTranscriptScraper.fetchTranscript(videoId)
-            val transcriptText = if (transcriptResult.isSuccess) {
-                val segments = transcriptResult.getOrNull()!!
-                youTubeTranscriptScraper.getTranscriptWithTimestamps(segments)
-            } else {
-                "Transcript not available for this video."
-            }
-
-            // Create enhanced content with all the details
-            val enhancedContent = buildString {
-                append("YouTube Video: ${videoDetails.title}\n")
-                append("Channel: ${videoDetails.channelTitle}\n")
-                append("Published: ${videoDetails.publishedAt}\n")
-                append("Duration: ${videoDetails.durationText}\n")
-                append("Views: ${formatCount(videoDetails.viewCount)}\n")
-                append("Likes: ${formatCount(videoDetails.likeCount)}\n")
-                append("Comments: ${formatCount(videoDetails.commentCount)}\n\n")
-
-                if (videoDetails.tags.isNotEmpty()) {
-                    append("Tags: ${videoDetails.tags.joinToString(", ")}\n\n")
-                }
-
-                append("Description:\n${videoDetails.description}\n\n")
-
-                append("Transcript:\n$transcriptText")
-            }
-
-            return Result.success(
-                UrlContent(
-                    title = videoDetails.title,
-                    content = enhancedContent,
-                    url = url,
-                    thumbnailUrl = videoDetails.thumbnailUrl,
-                    sourceType = "YouTube",
-                    metadata = mapOf(
-                        "videoId" to videoId,
-                        "channelTitle" to videoDetails.channelTitle,
-                        "duration" to videoDetails.duration.toString(),
-                        "durationText" to videoDetails.durationText,
-                        "viewCount" to videoDetails.viewCount.toString(),
-                        "likeCount" to videoDetails.likeCount.toString(),
-                        "hasTranscript" to transcriptResult.isSuccess.toString()
-                    )
-                )
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Error extracting YouTube content: $url", e)
-            return Result.failure(e)
-        }
-    }
-
-    /**
-     * Basic YouTube content extraction as fallback
-     */
-    private fun extractYouTubeContentBasic(url: String, videoId: String): Result<UrlContent> {
-        try {
-            // Get video info using Jsoup
-            val doc = Jsoup.connect(url)
-                .userAgent(USER_AGENT)
-                .timeout(TIMEOUT_MS)
-                .get()
-
-            val title = doc.select("meta[property=og:title]").attr("content")
-            val description = doc.select("meta[property=og:description]").attr("content")
-            val thumbnailUrl = "https://img.youtube.com/vi/$videoId/maxresdefault.jpg"
-
-            // Create enhanced content with video ID and more context
-            val enhancedContent = """YouTube Video: $title
-                |Video ID: $videoId
-                |URL: $url
-                |
-                |Description:
-                |$description
-                |
-                |This content was extracted from a YouTube video.
-                """.trimMargin()
-
-            return Result.success(
-                UrlContent(
-                    title = title.ifEmpty { "YouTube Video" },
-                    content = enhancedContent,
-                    url = url,
-                    thumbnailUrl = thumbnailUrl,
-                    sourceType = "YouTube",
-                    metadata = mapOf("videoId" to videoId)
-                )
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Error extracting basic YouTube content: $url", e)
-            return Result.failure(e)
-        }
-    }
-
-    /**
-     * Format large numbers for display (e.g., 1.2M, 4.5K)
-     */
-    private fun formatCount(count: Long): String {
-        return when {
-            count >= 1_000_000_000 -> String.format("%.1fB", count / 1_000_000_000.0)
-            count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
-            count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
-            else -> count.toString()
-        }
+        Log.d(TAG, "Extracting YouTube content using enhanced processor: $url")
+        return youTubeContentProcessor.processYouTubeUrl(url)
     }
 
     /**
