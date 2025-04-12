@@ -24,6 +24,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.secondbrain.R
 import com.secondbrain.data.repository.SettingsRepository
+import com.secondbrain.ui.card.CardDetailScreen
+import com.secondbrain.ui.card.CardEditScreen
 import com.secondbrain.ui.home.HomeScreen
 import com.secondbrain.ui.knowledge.KnowledgeGraphScreen
 import com.secondbrain.ui.notes.NoteDetailScreen
@@ -31,7 +33,13 @@ import com.secondbrain.ui.notes.NoteEditScreen
 import com.secondbrain.ui.notes.NoteListScreen
 import com.secondbrain.ui.search.SearchScreen
 import com.secondbrain.ui.settings.AiSettingsScreen
+import com.secondbrain.ui.settings.SystemPromptSettingsScreen
+import com.secondbrain.ui.settings.ClaudeModelScreen
+import com.secondbrain.ui.settings.DeepSeekModelScreen
+import com.secondbrain.ui.settings.GeminiModelScreen
+import com.secondbrain.ui.settings.OpenAiModelScreen
 import com.secondbrain.ui.settings.OpenRouterModelScreen
+import com.secondbrain.ui.settings.CostAwareOpenRouterModelScreen
 import com.secondbrain.ui.settings.SettingsScreen
 import com.secondbrain.ui.settings.SettingsViewModel
 import com.secondbrain.ui.theme.ThemeManager
@@ -87,7 +95,14 @@ fun SecondBrainApp(
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Notes.route) {
-                HomeScreen()
+                HomeScreen(
+                    onNavigateToCardDetail = { cardId ->
+                        navController.navigate("card/$cardId")
+                    },
+                    onNavigateToCardEdit = { cardId ->
+                        navController.navigate("card/edit/$cardId")
+                    }
+                )
             }
             composable(Screen.Search.route) {
                 SearchScreen(navController = navController)
@@ -96,6 +111,9 @@ fun SecondBrainApp(
                 SettingsScreen(
                     onNavigateToAiSettings = {
                         navController.navigate("settings/ai")
+                    },
+                    onNavigateToSystemPromptSettings = {
+                        navController.navigate("settings/system-prompts")
                     }
                 )
             }
@@ -106,11 +124,52 @@ fun SecondBrainApp(
                     },
                     onNavigateToOpenRouterModels = {
                         navController.navigate("settings/ai/openrouter")
+                    },
+                    onNavigateToGeminiModels = {
+                        navController.navigate("settings/ai/gemini")
+                    },
+                    onNavigateToOpenAiModels = {
+                        navController.navigate("settings/ai/openai")
+                    },
+                    onNavigateToClaudeModels = {
+                        navController.navigate("settings/ai/claude")
+                    },
+                    onNavigateToDeepSeekModels = {
+                        navController.navigate("settings/ai/deepseek")
                     }
                 )
             }
             composable("settings/ai/openrouter") {
-                OpenRouterModelScreen(
+                // Use the cost-aware model selector instead of the regular one
+                CostAwareOpenRouterModelScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+            composable("settings/ai/gemini") {
+                GeminiModelScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+            composable("settings/ai/openai") {
+                OpenAiModelScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+            composable("settings/ai/claude") {
+                ClaudeModelScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+            composable("settings/ai/deepseek") {
+                DeepSeekModelScreen(
                     onNavigateBack = {
                         navController.popBackStack()
                     }
@@ -142,6 +201,38 @@ fun SecondBrainApp(
             }
             composable("note/new") {
                 NoteEditScreen(navController = navController, initialContent = sharedText)
+            }
+
+            // Card routes
+            composable("card/{cardId}") { backStackEntry ->
+                val cardId = backStackEntry.arguments?.getString("cardId") ?: return@composable
+                CardDetailScreen(
+                    cardId = cardId,
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    },
+                    onNavigateToEdit = { id ->
+                        navController.navigate("card/edit/$id")
+                    }
+                )
+            }
+
+            composable("card/edit/{cardId}") { backStackEntry ->
+                val cardId = backStackEntry.arguments?.getString("cardId") ?: return@composable
+                CardEditScreen(
+                    cardId = cardId,
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("settings/system-prompts") {
+                SystemPromptSettingsScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
             }
         }
     }

@@ -33,11 +33,14 @@ import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * API client for OpenRouter
  */
-class OpenRouterApiClient {
+@Singleton
+class OpenRouterApiClient @Inject constructor() {
     companion object {
         private const val TAG = "OpenRouterApiClient"
         private const val BASE_URL = "https://openrouter.ai/api/v1"
