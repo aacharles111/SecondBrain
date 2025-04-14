@@ -12,23 +12,25 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class SummaryReviewActivity : ComponentActivity() {
-    
+
     companion object {
         const val EXTRA_CARD_ID = "card_id"
     }
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         // Get the card ID from the intent
         val cardId = intent.getStringExtra(EXTRA_CARD_ID) ?: ""
-        
+
+        android.util.Log.d("SummaryReviewActivity", "onCreate: Card ID from intent: $cardId")
+
         if (cardId.isEmpty()) {
             android.util.Log.e("SummaryReviewActivity", "No card ID provided")
             finish()
             return
         }
-        
+
         try {
             setContent {
                 SecondBrainTheme {
@@ -37,6 +39,7 @@ class SummaryReviewActivity : ComponentActivity() {
                         color = MaterialTheme.colorScheme.background
                     ) {
                         SummaryReviewScreen(
+                            cardId = cardId,
                             onClose = { finish() },
                             onSave = { finish() }
                         )

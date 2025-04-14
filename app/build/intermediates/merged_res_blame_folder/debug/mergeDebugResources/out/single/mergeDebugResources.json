@@ -1,23 +1,19 @@
 [
     {
-        "merged": "com.secondbrain.app-debug-82:/drawable_ic_launcher_foreground.xml.flat",
-        "source": "com.secondbrain.app-main-84:/drawable/ic_launcher_foreground.xml"
-    },
-    {
         "merged": "com.secondbrain.app-debug-82:/mipmap-mdpi_ic_launcher_round.xml.flat",
         "source": "com.secondbrain.app-main-84:/mipmap-mdpi/ic_launcher_round.xml"
     },
     {
-        "merged": "com.secondbrain.app-debug-82:/mipmap-xhdpi_ic_launcher_round.xml.flat",
-        "source": "com.secondbrain.app-main-84:/mipmap-xhdpi/ic_launcher_round.xml"
+        "merged": "com.secondbrain.app-debug-82:/drawable_ic_note.xml.flat",
+        "source": "com.secondbrain.app-main-84:/drawable/ic_note.xml"
     },
     {
-        "merged": "com.secondbrain.app-debug-82:/mipmap-xxhdpi_ic_launcher_round.xml.flat",
-        "source": "com.secondbrain.app-main-84:/mipmap-xxhdpi/ic_launcher_round.xml"
+        "merged": "com.secondbrain.app-debug-82:/drawable_ic_globe.xml.flat",
+        "source": "com.secondbrain.app-main-84:/drawable/ic_globe.xml"
     },
     {
-        "merged": "com.secondbrain.app-debug-82:/mipmap-mdpi_ic_launcher.xml.flat",
-        "source": "com.secondbrain.app-main-84:/mipmap-mdpi/ic_launcher.xml"
+        "merged": "com.secondbrain.app-debug-82:/drawable_ic_link.xml.flat",
+        "source": "com.secondbrain.app-main-84:/drawable/ic_link.xml"
     },
     {
         "merged": "com.secondbrain.app-debug-82:/mipmap-xxhdpi_ic_launcher.xml.flat",
@@ -32,8 +28,36 @@
         "source": "com.secondbrain.app-main-84:/mipmap-hdpi/ic_launcher_round.xml"
     },
     {
+        "merged": "com.secondbrain.app-debug-82:/drawable_ic_audio.xml.flat",
+        "source": "com.secondbrain.app-main-84:/drawable/ic_audio.xml"
+    },
+    {
         "merged": "com.secondbrain.app-debug-82:/mipmap-xxxhdpi_ic_launcher_round.xml.flat",
         "source": "com.secondbrain.app-main-84:/mipmap-xxxhdpi/ic_launcher_round.xml"
+    },
+    {
+        "merged": "com.secondbrain.app-debug-82:/drawable_ic_search.xml.flat",
+        "source": "com.secondbrain.app-main-84:/drawable/ic_search.xml"
+    },
+    {
+        "merged": "com.secondbrain.app-debug-82:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.secondbrain.app-main-84:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "com.secondbrain.app-debug-82:/mipmap-xhdpi_ic_launcher_round.xml.flat",
+        "source": "com.secondbrain.app-main-84:/mipmap-xhdpi/ic_launcher_round.xml"
+    },
+    {
+        "merged": "com.secondbrain.app-debug-82:/mipmap-xxhdpi_ic_launcher_round.xml.flat",
+        "source": "com.secondbrain.app-main-84:/mipmap-xxhdpi/ic_launcher_round.xml"
+    },
+    {
+        "merged": "com.secondbrain.app-debug-82:/mipmap-mdpi_ic_launcher.xml.flat",
+        "source": "com.secondbrain.app-main-84:/mipmap-mdpi/ic_launcher.xml"
+    },
+    {
+        "merged": "com.secondbrain.app-debug-82:/drawable_ic_pdf.xml.flat",
+        "source": "com.secondbrain.app-main-84:/drawable/ic_pdf.xml"
     },
     {
         "merged": "com.secondbrain.app-debug-82:/mipmap-hdpi_ic_launcher.xml.flat",

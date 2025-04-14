@@ -4,6 +4,8 @@ import com.secondbrain.di.AiModule;
 import com.secondbrain.di.AppModule;
 import com.secondbrain.di.WorkerModule;
 import com.secondbrain.ui.MainActivity_GeneratedInjector;
+import com.secondbrain.ui.card.CardDetailViewModel_HiltModules;
+import com.secondbrain.ui.card.CardEditViewModel_HiltModules;
 import com.secondbrain.ui.card.CreateCardActivity_GeneratedInjector;
 import com.secondbrain.ui.card.CreateCardViewModel_HiltModules;
 import com.secondbrain.ui.card.SummaryReviewActivity_GeneratedInjector;
@@ -15,8 +17,16 @@ import com.secondbrain.ui.notes.NoteEditViewModel_HiltModules;
 import com.secondbrain.ui.notes.NoteListViewModel_HiltModules;
 import com.secondbrain.ui.search.SearchViewModel_HiltModules;
 import com.secondbrain.ui.settings.AiSettingsViewModel_HiltModules;
+import com.secondbrain.ui.settings.ClaudeModelViewModel_HiltModules;
+import com.secondbrain.ui.settings.CostAwareModelSelectorViewModel_HiltModules;
+import com.secondbrain.ui.settings.DeepSeekModelViewModel_HiltModules;
+import com.secondbrain.ui.settings.GeminiModelViewModel_HiltModules;
+import com.secondbrain.ui.settings.OpenAiModelViewModel_HiltModules;
 import com.secondbrain.ui.settings.OpenRouterViewModel_HiltModules;
+import com.secondbrain.ui.settings.SettingsActivity_GeneratedInjector;
 import com.secondbrain.ui.settings.SettingsViewModel_HiltModules;
+import com.secondbrain.ui.settings.SystemPromptSettingsViewModel_HiltModules;
+import com.secondbrain.ui.test.ThumbnailTestActivity_GeneratedInjector;
 import dagger.Binds;
 import dagger.Component;
 import dagger.Module;
@@ -171,7 +181,13 @@ public final class SecondBrainApp_HiltComponents {
   @Subcomponent(
       modules = {
           AiSettingsViewModel_HiltModules.KeyModule.class,
+          CardDetailViewModel_HiltModules.KeyModule.class,
+          CardEditViewModel_HiltModules.KeyModule.class,
+          ClaudeModelViewModel_HiltModules.KeyModule.class,
+          CostAwareModelSelectorViewModel_HiltModules.KeyModule.class,
           CreateCardViewModel_HiltModules.KeyModule.class,
+          DeepSeekModelViewModel_HiltModules.KeyModule.class,
+          GeminiModelViewModel_HiltModules.KeyModule.class,
           HiltWrapper_ActivityRetainedComponentManager_LifecycleModule.class,
           HiltWrapper_SavedStateHandleModule.class,
           HomeViewModel_HiltModules.KeyModule.class,
@@ -179,12 +195,14 @@ public final class SecondBrainApp_HiltComponents {
           NoteDetailViewModel_HiltModules.KeyModule.class,
           NoteEditViewModel_HiltModules.KeyModule.class,
           NoteListViewModel_HiltModules.KeyModule.class,
+          OpenAiModelViewModel_HiltModules.KeyModule.class,
           OpenRouterViewModel_HiltModules.KeyModule.class,
           SearchViewModel_HiltModules.KeyModule.class,
           ActivityCBuilderModule.class,
           ViewModelCBuilderModule.class,
           SettingsViewModel_HiltModules.KeyModule.class,
-          SummaryReviewViewModel_HiltModules.KeyModule.class
+          SummaryReviewViewModel_HiltModules.KeyModule.class,
+          SystemPromptSettingsViewModel_HiltModules.KeyModule.class
       }
   )
   @ActivityRetainedScoped
@@ -209,6 +227,8 @@ public final class SecondBrainApp_HiltComponents {
   public abstract static class ActivityC implements MainActivity_GeneratedInjector,
       CreateCardActivity_GeneratedInjector,
       SummaryReviewActivity_GeneratedInjector,
+      SettingsActivity_GeneratedInjector,
+      ThumbnailTestActivity_GeneratedInjector,
       ActivityComponent,
       DefaultViewModelFactories.ActivityEntryPoint,
       HiltWrapper_HiltViewModelFactory_ActivityCreatorEntryPoint,
@@ -223,17 +243,25 @@ public final class SecondBrainApp_HiltComponents {
   @Subcomponent(
       modules = {
           AiSettingsViewModel_HiltModules.BindsModule.class,
+          CardDetailViewModel_HiltModules.BindsModule.class,
+          CardEditViewModel_HiltModules.BindsModule.class,
+          ClaudeModelViewModel_HiltModules.BindsModule.class,
+          CostAwareModelSelectorViewModel_HiltModules.BindsModule.class,
           CreateCardViewModel_HiltModules.BindsModule.class,
+          DeepSeekModelViewModel_HiltModules.BindsModule.class,
+          GeminiModelViewModel_HiltModules.BindsModule.class,
           HiltWrapper_HiltViewModelFactory_ViewModelModule.class,
           HomeViewModel_HiltModules.BindsModule.class,
           KnowledgeGraphViewModel_HiltModules.BindsModule.class,
           NoteDetailViewModel_HiltModules.BindsModule.class,
           NoteEditViewModel_HiltModules.BindsModule.class,
           NoteListViewModel_HiltModules.BindsModule.class,
+          OpenAiModelViewModel_HiltModules.BindsModule.class,
           OpenRouterViewModel_HiltModules.BindsModule.class,
           SearchViewModel_HiltModules.BindsModule.class,
           SettingsViewModel_HiltModules.BindsModule.class,
-          SummaryReviewViewModel_HiltModules.BindsModule.class
+          SummaryReviewViewModel_HiltModules.BindsModule.class,
+          SystemPromptSettingsViewModel_HiltModules.BindsModule.class
       }
   )
   @ViewModelScoped

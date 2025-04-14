@@ -5,23 +5,27 @@ import android.net.Uri
 import android.util.Log
 import com.secondbrain.data.repository.SettingsRepository
 import com.secondbrain.data.service.ai.api.OpenAiApiClient
+import com.secondbrain.data.service.ai.provider.OpenAiPromptFormatter
 import com.secondbrain.util.SecureStorage
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Implementation of AiProvider for OpenAI
+ * Implementation of BaseAiProvider for OpenAI
  */
 @Singleton
 class OpenAiProvider @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsRepository: SettingsRepository,
     private val secureStorage: SecureStorage
-) : AiProvider {
+) : BaseAiProvider {
 
     companion object {
         private const val TAG = "OpenAiProvider"
@@ -29,7 +33,29 @@ class OpenAiProvider @Inject constructor(
 
     override val name: String = "OpenAI"
 
-    override val availableModels: List<AiModel> = listOf(
+    override val systemPromptFormat: SystemPromptHandler.SystemPromptFormat =
+        SystemPromptHandler.SystemPromptFormat.DEDICATED_SYSTEM_MESSAGE
+
+    /**
+     * Process a system prompt according to OpenAI's requirements
+     * For OpenAI, we use a dedicated system message
+     */
+    override suspend fun processSystemPrompt(systemPrompt: String?, userPrompt: String): Any {
+        // Use the OpenAiPromptFormatter to format the prompt
+        return OpenAiPromptFormatter.formatPrompt(systemPrompt, userPrompt)
+    }
+
+    // The getApiKey method is already implemented in this class
+
+    /**
+     * Get the selected model ID for this provider
+     */
+    override suspend fun getSelectedModelId(): String? {
+        return _selectedModel.value?.id
+    }
+
+    // Default models to use if API call fails
+    private val defaultModels = listOf(
         AiModel(
             id = "gpt-4o",
             name = "GPT-4o",
@@ -75,6 +101,17 @@ class OpenAiProvider @Inject constructor(
         )
     )
 
+    // All available models (will be populated from API)
+    private val _allModels = MutableStateFlow<List<AiModel>>(defaultModels)
+    val allModels: StateFlow<List<AiModel>> = _allModels.asStateFlow()
+
+    // Currently selected model
+    private val _selectedModel = MutableStateFlow<AiModel?>(defaultModels.firstOrNull())
+    val selectedModel: StateFlow<AiModel?> = _selectedModel.asStateFlow()
+
+    override val availableModels: List<AiModel>
+        get() = _allModels.value
+
     // API client
     private val apiClient = OpenAiApiClient()
 
@@ -86,6 +123,42 @@ class OpenAiProvider @Inject constructor(
     override fun isConfigured(): Boolean {
         return secureStorage.containsKey(SecureStorage.KEY_OPENAI_API_KEY) &&
                secureStorage.getString(SecureStorage.KEY_OPENAI_API_KEY).isNotEmpty()
+    }
+
+    /**
+     * Fetch all available models from OpenAI
+     */
+    suspend fun fetchAvailableModels(): Result<List<AiModel>> = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Fetching available models from OpenAI")
+
+            val apiKey = getApiKey()
+            if (apiKey.isNullOrEmpty()) {
+                return@withContext Result.failure(Exception("OpenAI API key not configured"))
+            }
+
+            // Call the OpenAI API client
+            val result = apiClient.fetchAvailableModels(apiKey)
+
+            if (result.isSuccess) {
+                val models = result.getOrNull() ?: emptyList()
+                _allModels.value = models
+                return@withContext Result.success(models)
+            } else {
+                val exception = result.exceptionOrNull() ?: Exception("Unknown error fetching models")
+                return@withContext Result.failure(exception)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching available models from OpenAI", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Set the selected model
+     */
+    fun setSelectedModel(model: AiModel) {
+        _selectedModel.value = model
     }
 
     override suspend fun summarizeText(

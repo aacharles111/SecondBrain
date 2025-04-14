@@ -32,7 +32,8 @@ import com.secondbrain.R
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
-    onNavigateToAiSettings: () -> Unit = {}
+    onNavigateToAiSettings: () -> Unit = {},
+    onNavigateToSystemPromptSettings: () -> Unit = {}
 ) {
     // Collect settings
     val darkMode by viewModel.darkMode.collectAsState()
@@ -150,6 +151,33 @@ fun SettingsScreen(
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
                         contentDescription = "Go to AI settings"
+                    )
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                // System prompt settings
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToSystemPromptSettings() }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "System Prompts",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = "Customize AI system prompts for different content types",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Navigate to system prompt settings"
                     )
                 }
             }

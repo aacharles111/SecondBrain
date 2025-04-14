@@ -22,7 +22,11 @@ import com.secondbrain.data.service.ai.AiProvider
 fun AiSettingsScreen(
     viewModel: AiSettingsViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
-    onNavigateToOpenRouterModels: () -> Unit = {}
+    onNavigateToOpenRouterModels: () -> Unit = {},
+    onNavigateToGeminiModels: () -> Unit = {},
+    onNavigateToOpenAiModels: () -> Unit = {},
+    onNavigateToClaudeModels: () -> Unit = {},
+    onNavigateToDeepSeekModels: () -> Unit = {}
 ) {
     val providers by viewModel.providers.collectAsState()
     val selectedProvider by viewModel.selectedProvider.collectAsState()
@@ -60,7 +64,11 @@ fun AiSettingsScreen(
                     provider = provider,
                     isSelected = provider.name == selectedProvider?.name,
                     onClick = { viewModel.selectProvider(provider) },
-                    onNavigateToOpenRouterModels = onNavigateToOpenRouterModels
+                    onNavigateToOpenRouterModels = onNavigateToOpenRouterModels,
+                    onNavigateToGeminiModels = onNavigateToGeminiModels,
+                    onNavigateToOpenAiModels = onNavigateToOpenAiModels,
+                    onNavigateToClaudeModels = onNavigateToClaudeModels,
+                    onNavigateToDeepSeekModels = onNavigateToDeepSeekModels
                 )
             }
 
@@ -84,52 +92,6 @@ fun AiSettingsScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Model capabilities
-            selectedProvider?.let { provider ->
-                Text(
-                    text = "Available Models",
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                provider.availableModels.forEach { model ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Text(
-                                text = model.name,
-                                style = MaterialTheme.typography.titleSmall
-                            )
-
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            Text(
-                                text = "Capabilities: ${model.capabilities.joinToString(", ") { it.name }}",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-
-                            Text(
-                                text = "Max Tokens: ${model.maxTokens}",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-
-                            Text(
-                                text = "Context Window: ${model.contextWindow}",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-            }
-
             Spacer(modifier = Modifier.height(24.dp))
 
             // Save button
@@ -148,7 +110,11 @@ fun ProviderOption(
     provider: AiProvider,
     isSelected: Boolean,
     onClick: () -> Unit,
-    onNavigateToOpenRouterModels: () -> Unit = {}
+    onNavigateToOpenRouterModels: () -> Unit = {},
+    onNavigateToGeminiModels: () -> Unit = {},
+    onNavigateToOpenAiModels: () -> Unit = {},
+    onNavigateToClaudeModels: () -> Unit = {},
+    onNavigateToDeepSeekModels: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -168,16 +134,20 @@ fun ProviderOption(
                 text = provider.name,
                 style = MaterialTheme.typography.bodyLarge
             )
-
-            Text(
-                text = "${provider.availableModels.size} models available",
-                style = MaterialTheme.typography.bodySmall
-            )
         }
 
-        // Show model selection button for OpenRouter when selected
-        if (isSelected && provider.name == "OpenRouter") {
-            TextButton(onClick = onNavigateToOpenRouterModels) {
+        // Show model selection button when provider is selected
+        if (isSelected) {
+            TextButton(
+                onClick = when (provider.name) {
+                    "Gemini" -> onNavigateToGeminiModels
+                    "OpenAI" -> onNavigateToOpenAiModels
+                    "Claude" -> onNavigateToClaudeModels
+                    "DeepSeek" -> onNavigateToDeepSeekModels
+                    "OpenRouter" -> onNavigateToOpenRouterModels
+                    else -> { {} }
+                }
+            ) {
                 Text("Select Model")
             }
         }

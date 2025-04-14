@@ -1,5 +1,6 @@
 package com.secondbrain.data.service
 
+import com.secondbrain.data.model.CardType
 import com.secondbrain.data.service.ai.AiServiceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,6 +24,7 @@ class AiService @Inject constructor(
      * @param language The language to use for the summary
      * @param aiModel The AI model to use for summarization
      * @param customInstructions Optional custom instructions for the AI
+     * @param contentType The type of content being summarized
      * @return The generated summary
      */
     suspend fun summarize(
@@ -30,7 +32,8 @@ class AiService @Inject constructor(
         summaryType: String,
         language: String,
         aiModel: String,
-        customInstructions: String? = null
+        customInstructions: String? = null,
+        contentType: CardType? = null
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
             // Delegate to the AiServiceManager
@@ -39,7 +42,8 @@ class AiService @Inject constructor(
                 summaryType = summaryType,
                 language = language,
                 aiModel = aiModel,
-                customInstructions = customInstructions
+                customInstructions = customInstructions,
+                contentType = contentType
             )
         } catch (e: Exception) {
             Result.failure(e)
@@ -50,14 +54,18 @@ class AiService @Inject constructor(
      * Extract tags from content
      *
      * @param content The content to extract tags from
+     * @param language The language to use for tag generation
+     * @param aiModel The AI model to use for tag generation
      * @return A list of suggested tags
      */
-    suspend fun extractTags(content: String, language: String = "English"): Result<List<String>> = withContext(Dispatchers.IO) {
+    suspend fun extractTags(content: String, language: String = "English", aiModel: String? = null, maxTags: Int = 15): Result<List<String>> = withContext(Dispatchers.IO) {
         try {
             // Delegate to the AiServiceManager
             aiServiceManager.generateTags(
                 content = content,
-                language = language
+                language = language,
+                aiModel = aiModel,
+                maxTags = maxTags
             )
         } catch (e: Exception) {
             Result.failure(e)
@@ -68,14 +76,17 @@ class AiService @Inject constructor(
      * Generate a title from content
      *
      * @param content The content to generate a title for
+     * @param language The language to use for title generation
+     * @param aiModel The AI model to use for title generation
      * @return A suggested title
      */
-    suspend fun generateTitle(content: String, language: String = "English"): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun generateTitle(content: String, language: String = "English", aiModel: String? = null): Result<String> = withContext(Dispatchers.IO) {
         try {
             // Delegate to the AiServiceManager
             aiServiceManager.generateTitle(
                 content = content,
-                language = language
+                language = language,
+                aiModel = aiModel
             )
         } catch (e: Exception) {
             Result.failure(e)

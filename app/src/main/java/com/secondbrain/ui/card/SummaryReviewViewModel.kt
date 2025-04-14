@@ -30,6 +30,7 @@ class SummaryReviewViewModel @Inject constructor(
     var sourceUrl by mutableStateOf("")
     var language by mutableStateOf("English")
     var aiModel by mutableStateOf("Gemini")
+    var thumbnailUrl by mutableStateOf<String?>(null)
     val tags = mutableStateListOf<String>()
 
     // Original content for regeneration
@@ -74,10 +75,13 @@ class SummaryReviewViewModel @Inject constructor(
                         sourceUrl = card.source
                         language = card.language
                         aiModel = card.aiModel
+                        thumbnailUrl = card.thumbnailUrl
                         tags.clear()
                         tags.addAll(card.tags)
                         originalContent = card.content
                         summaryType = card.summaryType
+
+                        android.util.Log.d("SummaryReviewViewModel", "loadCard: Loaded thumbnailUrl: ${card.thumbnailUrl}")
 
                         // Check if summary is empty and try to regenerate it
                         if (summary.isBlank()) {
@@ -143,7 +147,13 @@ class SummaryReviewViewModel @Inject constructor(
                             "The AI server is currently overloaded. Please try again in a few moments."
                         }
                         is com.secondbrain.util.ApiPaymentRequiredException -> {
-                            "OpenRouter requires more credits: ${error.message?.substringAfter("Payment required: ")}"
+                            val errorMsg = error.message?.substringAfter("Payment required: ") ?: ""
+                            if (errorMsg.contains("max_tokens", ignoreCase = true)) {
+                                // This is a token limit issue, provide a more helpful message
+                                "OpenRouter token limit exceeded. Try using a different model or reducing the content length."
+                            } else {
+                                "OpenRouter requires more credits: $errorMsg"
+                            }
                         }
                         is com.secondbrain.util.ApiRateLimitException -> {
                             "Rate limit exceeded. Please try again later."
@@ -228,6 +238,7 @@ class SummaryReviewViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 isLoading = true
+                android.util.Log.d("SummaryReviewViewModel", "saveCard: Saving card with thumbnailUrl: $thumbnailUrl")
                 val card = Card(
                     id = cardId,
                     title = title,
@@ -240,7 +251,8 @@ class SummaryReviewViewModel @Inject constructor(
                     updatedAt = System.currentTimeMillis(),
                     language = language,
                     aiModel = aiModel,
-                    summaryType = summaryType
+                    summaryType = summaryType,
+                    thumbnailUrl = thumbnailUrl
                 )
 
                 cardRepository.updateCard(card).onSuccess {

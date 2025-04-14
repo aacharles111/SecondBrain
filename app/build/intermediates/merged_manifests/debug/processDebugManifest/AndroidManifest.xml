@@ -31,6 +31,23 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.SecondBrain" >
+
+        <!-- Disable default WorkManager initialization -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="com.secondbrain.androidx-startup"
+            android:exported="false" >
+            <meta-data
+                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+                android:value="androidx.startup" />
+            <meta-data
+                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+                android:value="androidx.startup" />
+            <meta-data
+                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+                android:value="androidx.startup" />
+        </provider>
+
         <activity
             android:name="com.secondbrain.ui.MainActivity"
             android:exported="true"
@@ -58,26 +75,22 @@
             android:exported="false"
             android:theme="@style/Theme.SecondBrain" />
         <activity
+            android:name="com.secondbrain.ui.settings.SettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SecondBrain" />
+        <activity
+            android:name="com.secondbrain.ui.test.ThumbnailTestActivity"
+            android:exported="true"
+            android:theme="@style/Theme.SecondBrain" >
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        <activity
             android:name="androidx.compose.ui.tooling.PreviewActivity"
             android:exported="true" />
-
-        <provider
-            android:name="androidx.startup.InitializationProvider"
-            android:authorities="com.secondbrain.androidx-startup"
-            android:exported="false" >
-            <meta-data
-                android:name="androidx.work.WorkManagerInitializer"
-                android:value="androidx.startup" />
-            <meta-data
-                android:name="androidx.emoji2.text.EmojiCompatInitializer"
-                android:value="androidx.startup" />
-            <meta-data
-                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
-                android:value="androidx.startup" />
-            <meta-data
-                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
-                android:value="androidx.startup" />
-        </provider>
 
         <service
             android:name="androidx.work.impl.background.systemalarm.SystemAlarmService"

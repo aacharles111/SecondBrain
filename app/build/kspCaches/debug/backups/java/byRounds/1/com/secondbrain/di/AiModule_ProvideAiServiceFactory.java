@@ -24,23 +24,27 @@ import javax.inject.Provider;
     "KotlinInternalInJava"
 })
 public final class AiModule_ProvideAiServiceFactory implements Factory<AiService> {
+  private final AiModule module;
+
   private final Provider<AiServiceManager> aiServiceManagerProvider;
 
-  public AiModule_ProvideAiServiceFactory(Provider<AiServiceManager> aiServiceManagerProvider) {
+  public AiModule_ProvideAiServiceFactory(AiModule module,
+      Provider<AiServiceManager> aiServiceManagerProvider) {
+    this.module = module;
     this.aiServiceManagerProvider = aiServiceManagerProvider;
   }
 
   @Override
   public AiService get() {
-    return provideAiService(aiServiceManagerProvider.get());
+    return provideAiService(module, aiServiceManagerProvider.get());
   }
 
-  public static AiModule_ProvideAiServiceFactory create(
+  public static AiModule_ProvideAiServiceFactory create(AiModule module,
       Provider<AiServiceManager> aiServiceManagerProvider) {
-    return new AiModule_ProvideAiServiceFactory(aiServiceManagerProvider);
+    return new AiModule_ProvideAiServiceFactory(module, aiServiceManagerProvider);
   }
 
-  public static AiService provideAiService(AiServiceManager aiServiceManager) {
-    return Preconditions.checkNotNullFromProvides(AiModule.INSTANCE.provideAiService(aiServiceManager));
+  public static AiService provideAiService(AiModule instance, AiServiceManager aiServiceManager) {
+    return Preconditions.checkNotNullFromProvides(instance.provideAiService(aiServiceManager));
   }
 }

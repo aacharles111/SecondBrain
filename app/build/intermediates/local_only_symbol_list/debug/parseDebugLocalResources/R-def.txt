@@ -19,7 +19,13 @@ color purple_700
 color teal_200
 color teal_700
 color white
+drawable ic_audio
+drawable ic_globe
 drawable ic_launcher_foreground
+drawable ic_link
+drawable ic_note
+drawable ic_pdf
+drawable ic_search
 mipmap ic_launcher
 mipmap ic_launcher_round
 string action_cancel

@@ -2,6 +2,7 @@ package com.secondbrain.ui.card
 
 import com.secondbrain.data.model.CardType
 import com.secondbrain.data.repository.CardRepository
+import com.secondbrain.data.repository.SettingsRepository
 import com.secondbrain.data.service.AiService
 import com.secondbrain.data.service.WebSearchService
 import com.secondbrain.data.service.ai.AiServiceManager
@@ -29,6 +30,7 @@ class CreateCardViewModelTest {
     private lateinit var aiServiceManager: AiServiceManager
     private lateinit var contentExtractor: ContentExtractor
     private lateinit var webSearchService: WebSearchService
+    private lateinit var settingsRepository: SettingsRepository
 
     private lateinit var viewModel: CreateCardViewModel
 
@@ -39,6 +41,7 @@ class CreateCardViewModelTest {
         aiServiceManager = Mockito.mock(AiServiceManager::class.java)
         contentExtractor = Mockito.mock(ContentExtractor::class.java)
         webSearchService = Mockito.mock(WebSearchService::class.java)
+        settingsRepository = Mockito.mock(SettingsRepository::class.java)
 
         Dispatchers.setMain(testDispatcher)
 
@@ -47,7 +50,8 @@ class CreateCardViewModelTest {
             aiService = aiService,
             aiServiceManager = aiServiceManager,
             contentExtractor = contentExtractor,
-            webSearchService = webSearchService
+            webSearchService = webSearchService,
+            settingsRepository = settingsRepository
         )
     }
 

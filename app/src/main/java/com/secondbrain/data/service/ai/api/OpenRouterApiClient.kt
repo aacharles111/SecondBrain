@@ -12,6 +12,7 @@ import com.secondbrain.data.service.ai.SummaryType
 import com.secondbrain.data.service.ai.TagGenerationOptions
 import com.secondbrain.data.service.ai.TitleGenerationOptions
 import com.secondbrain.data.service.ai.TranscriptionOptions
+import com.secondbrain.data.service.ai.provider.OpenRouterPromptFormatter
 import com.secondbrain.util.ApiAuthenticationException
 import com.secondbrain.util.ApiInvalidRequestException
 import com.secondbrain.util.ApiPaymentRequiredException
@@ -200,15 +201,32 @@ class OpenRouterApiClient @Inject constructor() {
                     "$userPrompt\n\nAdditional instructions: ${options.customInstructions}\n\n$content"
                 }
 
-                // Create request body
+                // Create request body using the formatter
+                val messages = OpenRouterPromptFormatter.formatPrompt(systemPrompt, fullUserPrompt, modelId)
+
+                // Calculate a reasonable token limit based on content length
+                // Use a conservative estimate: for summarization, output is typically shorter than input
+                // Default to 300 tokens if no specific length is provided
+                val estimatedTokens = estimateRequiredTokens(content.length, options.summaryType)
+                val requestedTokens = options.maxLength ?: estimatedTokens
+
+                // Use the smaller of the requested tokens or estimated tokens to avoid credit issues
+                val maxTokens = minOf(requestedTokens, 300) // Conservative default max of 300 tokens
+
+                // Log detailed token usage information
+                Log.d(TAG, "TOKEN USAGE - Summarization request details:")
+                Log.d(TAG, "TOKEN USAGE - Content length: ${content.length} characters")
+                Log.d(TAG, "TOKEN USAGE - Summary type: ${options.summaryType}")
+                Log.d(TAG, "TOKEN USAGE - Estimated tokens needed: $estimatedTokens")
+                Log.d(TAG, "TOKEN USAGE - Requested tokens: $requestedTokens")
+                Log.d(TAG, "TOKEN USAGE - Final max_tokens: $maxTokens")
+                Log.d(TAG, "TOKEN USAGE - Model: $modelId")
+
                 val requestBody = OpenRouterRequest(
                     model = modelId,
-                    messages = listOf(
-                        OpenRouterMessage(role = "system", content = systemPrompt),
-                        OpenRouterMessage(role = "user", content = fullUserPrompt)
-                    ),
+                    messages = messages,
                     temperature = 0.3,
-                    maxTokens = options.maxLength ?: 1000
+                    maxTokens = maxTokens
                 )
 
                 val jsonBody = gson.toJson(requestBody)
@@ -233,6 +251,26 @@ class OpenRouterApiClient @Inject constructor() {
 
                 // Parse response
                 val jsonResponse = JSONObject(responseBody)
+
+                // Log token usage from the response if available
+                try {
+                    if (jsonResponse.has("usage")) {
+                        val usage = jsonResponse.getJSONObject("usage")
+                        val promptTokens = usage.optInt("prompt_tokens", 0)
+                        val completionTokens = usage.optInt("completion_tokens", 0)
+                        val totalTokens = usage.optInt("total_tokens", 0)
+
+                        Log.d(TAG, "TOKEN USAGE - API response token usage:")
+                        Log.d(TAG, "TOKEN USAGE - Prompt tokens: $promptTokens")
+                        Log.d(TAG, "TOKEN USAGE - Completion tokens: $completionTokens")
+                        Log.d(TAG, "TOKEN USAGE - Total tokens: $totalTokens")
+                    } else {
+                        Log.d(TAG, "TOKEN USAGE - No usage information in API response")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "TOKEN USAGE - Error parsing token usage information", e)
+                }
+
                 Log.d(TAG, "OpenRouter API response: $responseBody")
 
                 // Check for error response
@@ -240,6 +278,24 @@ class OpenRouterApiClient @Inject constructor() {
                     val error = jsonResponse.getJSONObject("error")
                     val errorMessage = if (error.has("message")) error.getString("message") else "Unknown error"
                     val errorCode = if (error.has("code")) error.getInt("code") else 400
+
+                    // Log detailed information for token-related errors
+                    if (errorCode == 402 && errorMessage.contains("max_tokens", ignoreCase = true)) {
+                        // This is a token limit error, log detailed information
+                        Log.e(TAG, "TOKEN USAGE - Token limit error detected")
+                        Log.e(TAG, "TOKEN USAGE - Error message: $errorMessage")
+
+                        // Try to extract the available tokens from the error message
+                        val regex = "can only afford (\\d+)".toRegex()
+                        val matchResult = regex.find(errorMessage)
+                        val availableTokens = matchResult?.groupValues?.get(1)?.toIntOrNull()
+
+                        if (availableTokens != null) {
+                            Log.e(TAG, "TOKEN USAGE - Available tokens: $availableTokens")
+                            Log.e(TAG, "TOKEN USAGE - Requested max_tokens: ${requestBody.maxTokens}")
+                            Log.e(TAG, "TOKEN USAGE - Difference: ${requestBody.maxTokens - availableTokens}")
+                        }
+                    }
 
                     // Handle specific error codes
                     val exception = when (errorCode) {
@@ -314,11 +370,28 @@ class OpenRouterApiClient @Inject constructor() {
                 // Create user prompt
                 val userPrompt = "Extract all text from this image in ${options.language}."
 
-                // Create request body with image
-                val requestBody = OpenRouterRequest(
-                    model = modelId,
-                    messages = listOf(
-                        OpenRouterMessage(role = "system", content = systemPrompt),
+                // For image processing, we need special handling
+                // First get the standard messages from the formatter
+                val standardMessages = OpenRouterPromptFormatter.formatPrompt(systemPrompt, userPrompt, modelId)
+
+                // Then replace the user message with one that includes the image
+                val messagesWithImage = if (standardMessages.size > 1) {
+                    // Keep the system message if it exists
+                    val systemMessage = standardMessages[0]
+                    val imageMessage = OpenRouterMessage(
+                        role = "user",
+                        content = listOf(
+                            OpenRouterContent(type = "text", text = userPrompt),
+                            OpenRouterContent(
+                                type = "image_url",
+                                imageUrl = ImageUrl(url = "data:image/jpeg;base64,$base64Image")
+                            )
+                        )
+                    )
+                    listOf(systemMessage, imageMessage)
+                } else {
+                    // No system message, just the user message with image
+                    listOf(
                         OpenRouterMessage(
                             role = "user",
                             content = listOf(
@@ -329,9 +402,23 @@ class OpenRouterApiClient @Inject constructor() {
                                 )
                             )
                         )
-                    ),
+                    )
+                }
+
+                // For image processing, use a conservative token limit
+                val maxTokens = 250 // Reduced from 1000 to conserve tokens
+
+                // Log token usage information for image processing
+                Log.d(TAG, "TOKEN USAGE - Image processing request details:")
+                Log.d(TAG, "TOKEN USAGE - Using max_tokens: $maxTokens")
+                Log.d(TAG, "TOKEN USAGE - Model: $modelId")
+                Log.d(TAG, "TOKEN USAGE - Language: ${options.language}")
+
+                val requestBody = OpenRouterRequest(
+                    model = modelId,
+                    messages = messagesWithImage,
                     temperature = 0.2,
-                    maxTokens = 1000
+                    maxTokens = maxTokens
                 )
 
                 val jsonBody = gson.toJson(requestBody)
@@ -427,15 +514,24 @@ class OpenRouterApiClient @Inject constructor() {
                 // Create user prompt
                 val userPrompt = "Generate between 10 and 20 relevant tags for the following content in ${options.language}. The tags should cover all important topics, concepts, and entities in the content. Return only the tags as a comma-separated list, without any additional text or explanation:\n\n$content"
 
-                // Create request body
+                // Create request body using the formatter
+                val messages = OpenRouterPromptFormatter.formatPrompt(systemPrompt, userPrompt, modelId)
+
+                // For tag generation, we need a small number of tokens
+                val maxTokens = 50 // Reduced from 100 to conserve tokens
+
+                // Log token usage information for tag generation
+                Log.d(TAG, "TOKEN USAGE - Tag generation request details:")
+                Log.d(TAG, "TOKEN USAGE - Content length: ${content.length} characters")
+                Log.d(TAG, "TOKEN USAGE - Max tags: ${options.maxTags}")
+                Log.d(TAG, "TOKEN USAGE - Using max_tokens: $maxTokens")
+                Log.d(TAG, "TOKEN USAGE - Model: $modelId")
+
                 val requestBody = OpenRouterRequest(
                     model = modelId,
-                    messages = listOf(
-                        OpenRouterMessage(role = "system", content = systemPrompt),
-                        OpenRouterMessage(role = "user", content = userPrompt)
-                    ),
+                    messages = messages,
                     temperature = 0.3,
-                    maxTokens = 100
+                    maxTokens = maxTokens
                 )
 
                 val jsonBody = gson.toJson(requestBody)
@@ -537,15 +633,24 @@ class OpenRouterApiClient @Inject constructor() {
                 // Create user prompt
                 val userPrompt = "Generate a title for the following content in ${options.language}. The title should be concise (maximum ${options.maxLength} characters) and descriptive. Return only the title, without any additional text or explanation:\n\n$content"
 
-                // Create request body
+                // Create request body using the formatter
+                val messages = OpenRouterPromptFormatter.formatPrompt(systemPrompt, userPrompt, modelId)
+
+                // For title generation, we need very few tokens
+                val maxTokens = 30 // Reduced from 50 to conserve tokens
+
+                // Log token usage information for title generation
+                Log.d(TAG, "TOKEN USAGE - Title generation request details:")
+                Log.d(TAG, "TOKEN USAGE - Content length: ${content.length} characters")
+                Log.d(TAG, "TOKEN USAGE - Max title length: ${options.maxLength}")
+                Log.d(TAG, "TOKEN USAGE - Using max_tokens: $maxTokens")
+                Log.d(TAG, "TOKEN USAGE - Model: $modelId")
+
                 val requestBody = OpenRouterRequest(
                     model = modelId,
-                    messages = listOf(
-                        OpenRouterMessage(role = "system", content = systemPrompt),
-                        OpenRouterMessage(role = "user", content = userPrompt)
-                    ),
+                    messages = messages,
                     temperature = 0.3,
-                    maxTokens = 50
+                    maxTokens = maxTokens
                 )
 
                 val jsonBody = gson.toJson(requestBody)
@@ -656,6 +761,24 @@ class OpenRouterApiClient @Inject constructor() {
                 errorMessage.contains("try again later", ignoreCase = true) ||
                 errorMessage.contains("queue", ignoreCase = true)
 
+        // Check for token-related errors and log detailed information
+        if (code == 402 && errorMessage.contains("max_tokens", ignoreCase = true)) {
+            // This is a token limit error, log detailed information
+            Log.e(TAG, "TOKEN USAGE - Token limit error detected in handleErrorResponse")
+            Log.e(TAG, "TOKEN USAGE - Error message: $errorMessage")
+
+            // Try to extract the available tokens from the error message
+            val regex = "can only afford (\\d+)".toRegex()
+            val matchResult = regex.find(errorMessage)
+            val availableTokens = matchResult?.groupValues?.get(1)?.toIntOrNull()
+
+            if (availableTokens != null) {
+                Log.e(TAG, "TOKEN USAGE - Available tokens: $availableTokens")
+                // We don't have access to the requested tokens here, but we can log what we know
+                Log.e(TAG, "TOKEN USAGE - Consider reducing max_tokens to: $availableTokens or less")
+            }
+        }
+
         throw when {
             isServerOverloaded -> ApiServerOverloadException("OpenRouter server is currently overloaded. Please try again later.")
             code == 401 || code == 403 -> ApiAuthenticationException("Authentication error: $errorMessage")
@@ -689,4 +812,35 @@ class OpenRouterApiClient @Inject constructor() {
     data class ImageUrl(
         val url: String
     )
+
+    /**
+     * Estimate the number of tokens required for a summary based on content length and summary type
+     * This is a rough estimate to avoid hitting token limits
+     *
+     * @param contentLength The length of the content to summarize
+     * @param summaryType The type of summary to generate
+     * @return An estimated number of tokens needed for the summary
+     */
+    private fun estimateRequiredTokens(contentLength: Int, summaryType: SummaryType): Int {
+        // Very rough estimate: 1 token ≈ 4 characters in English
+        // For summarization, output is typically much shorter than input
+        val ratio = when (summaryType) {
+            SummaryType.CONCISE -> 0.1 // Very short summary
+            SummaryType.BULLET_POINTS -> 0.15 // Bullet points are concise
+            SummaryType.KEY_FACTS -> 0.15 // Key facts are concise
+            SummaryType.DETAILED -> 0.25 // Detailed summaries are longer
+            SummaryType.QUESTION_ANSWER -> 0.25 // Q&A format can be verbose
+        }
+
+        // Calculate estimated tokens based on content length and ratio
+        val estimatedChars = contentLength * ratio
+        val estimatedTokens = (estimatedChars / 4).toInt()
+
+        // Ensure we stay within reasonable limits
+        return when {
+            estimatedTokens < 50 -> 50 // Minimum for a useful summary
+            estimatedTokens > 300 -> 300 // Conservative maximum to avoid credit issues
+            else -> estimatedTokens
+        }
+    }
 }

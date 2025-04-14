@@ -1,6 +1,6 @@
 package com.secondbrain.ui.search;
 
-import com.secondbrain.data.repository.NoteRepository;
+import com.secondbrain.data.repository.SearchRepository;
 import dagger.internal.DaggerGenerated;
 import dagger.internal.Factory;
 import dagger.internal.QualifierMetadata;
@@ -22,22 +22,23 @@ import javax.inject.Provider;
     "KotlinInternalInJava"
 })
 public final class SearchViewModel_Factory implements Factory<SearchViewModel> {
-  private final Provider<NoteRepository> noteRepositoryProvider;
+  private final Provider<SearchRepository> searchRepositoryProvider;
 
-  public SearchViewModel_Factory(Provider<NoteRepository> noteRepositoryProvider) {
-    this.noteRepositoryProvider = noteRepositoryProvider;
+  public SearchViewModel_Factory(Provider<SearchRepository> searchRepositoryProvider) {
+    this.searchRepositoryProvider = searchRepositoryProvider;
   }
 
   @Override
   public SearchViewModel get() {
-    return newInstance(noteRepositoryProvider.get());
+    return newInstance(searchRepositoryProvider.get());
   }
 
-  public static SearchViewModel_Factory create(Provider<NoteRepository> noteRepositoryProvider) {
-    return new SearchViewModel_Factory(noteRepositoryProvider);
+  public static SearchViewModel_Factory create(
+      Provider<SearchRepository> searchRepositoryProvider) {
+    return new SearchViewModel_Factory(searchRepositoryProvider);
   }
 
-  public static SearchViewModel newInstance(NoteRepository noteRepository) {
-    return new SearchViewModel(noteRepository);
+  public static SearchViewModel newInstance(SearchRepository searchRepository) {
+    return new SearchViewModel(searchRepository);
   }
 }

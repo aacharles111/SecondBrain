@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.secondbrain.R
+import com.secondbrain.ui.components.MarkdownText
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -35,7 +36,7 @@ fun SummaryReviewScreen(
     LaunchedEffect(cardId) {
         viewModel.loadCardById(cardId)
     }
-    
+
     // Show error dialog if there's an error
     viewModel.errorMessage?.let { error ->
         AlertDialog(
@@ -199,15 +200,47 @@ fun SummaryReviewScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Summary content
-                OutlinedTextField(
-                    value = viewModel.summary,
-                    onValueChange = { viewModel.summary = it },
-                    label = { Text("Summary") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 200.dp),
-                    minLines = 5
-                )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Summary",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Edit field
+                    OutlinedTextField(
+                        value = viewModel.summary,
+                        onValueChange = { viewModel.summary = it },
+                        label = { Text("Edit Summary") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 150.dp),
+                        minLines = 5
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Preview section
+                    Text(
+                        text = "Preview",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Markdown preview
+                    Card(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        MarkdownText(
+                            markdown = viewModel.summary,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -245,7 +278,7 @@ fun SummaryReviewScreen(
                         Text(stringResource(R.string.action_save))
                     }
                 }
-                
+
                 // Add some bottom padding for better scrolling
                 Spacer(modifier = Modifier.height(24.dp))
             }

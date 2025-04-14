@@ -3105,6 +3105,7 @@ drawable exo_styled_controls_subtitle_off
 drawable exo_styled_controls_subtitle_on
 drawable exo_styled_controls_vr
 drawable ic_arrow_back_black_24
+drawable ic_audio
 drawable ic_call_answer
 drawable ic_call_answer_low
 drawable ic_call_answer_video
@@ -3113,8 +3114,10 @@ drawable ic_call_decline
 drawable ic_call_decline_low
 drawable ic_clear_black_24
 drawable ic_clock_black_24dp
+drawable ic_globe
 drawable ic_keyboard_black_24dp
 drawable ic_launcher_foreground
+drawable ic_link
 drawable ic_m3_chip_check
 drawable ic_m3_chip_checked_circle
 drawable ic_m3_chip_close
@@ -3122,6 +3125,9 @@ drawable ic_mtrl_checked_circle
 drawable ic_mtrl_chip_checked_black
 drawable ic_mtrl_chip_checked_circle
 drawable ic_mtrl_chip_close_circle
+drawable ic_note
+drawable ic_pdf
+drawable ic_search
 drawable ic_search_black_24
 drawable m3_avd_hide_password
 drawable m3_avd_show_password

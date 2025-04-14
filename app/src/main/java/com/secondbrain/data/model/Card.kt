@@ -22,7 +22,15 @@ data class Card(
     val aiModel: String,
     val summaryType: String,
     val thumbnailUrl: String? = null,
-    val pageCount: Int? = null
+    val pageCount: Int? = null,
+    // YouTube-specific fields
+    val videoId: String? = null,
+    val channelTitle: String? = null,
+    val videoDuration: String? = null,
+    val viewCount: String? = null,
+    val hasTranscript: Boolean = false,
+    // Additional metadata as JSON string
+    val metadata: String? = null
 )
 
 enum class CardType {

@@ -3,10 +3,13 @@ package com.secondbrain.data.service.ai.api
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
+import com.secondbrain.data.service.ai.AiModel
+import com.secondbrain.data.service.ai.ModelCapability
 import com.secondbrain.data.service.ai.SummarizationOptions
 import com.secondbrain.data.service.ai.SummaryType
 import com.secondbrain.data.service.ai.TagGenerationOptions
 import com.secondbrain.data.service.ai.TitleGenerationOptions
+import com.secondbrain.data.service.ai.provider.DeepSeekPromptFormatter
 import com.secondbrain.util.ApiAuthenticationException
 import com.secondbrain.util.ApiInvalidRequestException
 import com.secondbrain.util.ApiRateLimitException
@@ -34,12 +37,12 @@ class DeepSeekApiClient {
         private const val DEFAULT_MODEL = "deepseek-chat"
         private const val CODER_MODEL = "deepseek-coder"
     }
-    
+
     private val client: OkHttpClient by lazy {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BASIC
         }
-        
+
         OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -47,9 +50,95 @@ class DeepSeekApiClient {
             .writeTimeout(30, TimeUnit.SECONDS)
             .build()
     }
-    
+
     private val gson = Gson()
-    
+
+    /**
+     * Fetch available models from DeepSeek API
+     * Note: DeepSeek API doesn't have a models endpoint, so we'll return the known models
+     */
+    suspend fun fetchAvailableModels(apiKey: String): Result<List<AiModel>> = withContext(Dispatchers.IO) {
+        return@withContext NetworkUtils.retryWithExponentialBackoff {
+            try {
+                // DeepSeek doesn't have a models endpoint, so we'll create a list of known models
+                // We'll verify the API key is valid by making a simple request
+                val requestBody = DeepSeekRequest(
+                    model = DEFAULT_MODEL,
+                    messages = listOf(
+                        DeepSeekMessage(role = "user", content = "Hello")
+                    ),
+                    temperature = 0.0,
+                    maxTokens = 1
+                )
+
+                val jsonBody = gson.toJson(requestBody)
+
+                val request = Request.Builder()
+                    .url(CHAT_ENDPOINT)
+                    .addHeader("Content-Type", "application/json")
+                    .addHeader("Authorization", "Bearer $apiKey")
+                    .post(jsonBody.toRequestBody("application/json".toMediaType()))
+                    .build()
+
+                // Execute request to check if API key is valid
+                val response = client.newCall(request).execute()
+
+                // If unauthorized, throw an exception
+                if (response.code == 401) {
+                    return@retryWithExponentialBackoff Result.failure(ApiAuthenticationException("Invalid DeepSeek API key"))
+                }
+
+                // Create list of known DeepSeek models
+                val models = listOf(
+                    AiModel(
+                        id = "deepseek-chat",
+                        name = "DeepSeek Chat",
+                        capabilities = setOf(
+                            ModelCapability.TEXT_CONTENT,
+                            ModelCapability.TEXT_SUMMARIZATION,
+                            ModelCapability.TAG_GENERATION,
+                            ModelCapability.TITLE_GENERATION,
+                            ModelCapability.WEB_CONTENT
+                        ),
+                        maxTokens = 16000,
+                        contextWindow = 32768
+                    ),
+                    AiModel(
+                        id = "deepseek-coder",
+                        name = "DeepSeek Coder",
+                        capabilities = setOf(
+                            ModelCapability.TEXT_CONTENT,
+                            ModelCapability.TEXT_SUMMARIZATION,
+                            ModelCapability.TAG_GENERATION,
+                            ModelCapability.TITLE_GENERATION,
+                            ModelCapability.CODE_UNDERSTANDING
+                        ),
+                        maxTokens = 16000,
+                        contextWindow = 32768
+                    ),
+                    AiModel(
+                        id = "deepseek-llm-67b-chat",
+                        name = "DeepSeek LLM 67B",
+                        capabilities = setOf(
+                            ModelCapability.TEXT_CONTENT,
+                            ModelCapability.TEXT_SUMMARIZATION,
+                            ModelCapability.TAG_GENERATION,
+                            ModelCapability.TITLE_GENERATION,
+                            ModelCapability.WEB_CONTENT
+                        ),
+                        maxTokens = 16000,
+                        contextWindow = 32768
+                    )
+                )
+
+                Result.success(models)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching models from DeepSeek API", e)
+                Result.failure(e)
+            }
+        }
+    }
+
     /**
      * Summarize text using DeepSeek
      */
@@ -68,7 +157,7 @@ class DeepSeekApiClient {
                     SummaryType.QUESTION_ANSWER -> "You are a helpful assistant that creates Q&A summaries. Format your summary as a series of questions and answers that cover the key points from the content."
                     SummaryType.KEY_FACTS -> "You are a helpful assistant that extracts key facts. Identify and list the most important facts from the content."
                 }
-                
+
                 // Create user prompt based on summary type
                 val userPrompt = when (options.summaryType) {
                     SummaryType.CONCISE -> "Create a concise summary of the following content in ${options.language}:"
@@ -77,27 +166,26 @@ class DeepSeekApiClient {
                     SummaryType.QUESTION_ANSWER -> "Create a Q&A summary of the following content in ${options.language}:"
                     SummaryType.KEY_FACTS -> "Extract the key facts from the following content in ${options.language}:"
                 }
-                
+
                 // Add custom instructions if provided
                 val fullUserPrompt = if (options.customInstructions.isNullOrEmpty()) {
                     "$userPrompt\n\n$content"
                 } else {
                     "$userPrompt\n\nAdditional instructions: ${options.customInstructions}\n\n$content"
                 }
-                
-                // Create request body
+
+                // Create request body using the formatter
+                val messages = DeepSeekPromptFormatter.formatPrompt(systemPrompt, fullUserPrompt)
+
                 val requestBody = DeepSeekRequest(
                     model = DEFAULT_MODEL,
-                    messages = listOf(
-                        DeepSeekMessage(role = "system", content = systemPrompt),
-                        DeepSeekMessage(role = "user", content = fullUserPrompt)
-                    ),
+                    messages = messages,
                     temperature = 0.3,
                     maxTokens = options.maxLength ?: 1000
                 )
-                
+
                 val jsonBody = gson.toJson(requestBody)
-                
+
                 // Create request
                 val request = Request.Builder()
                     .url(CHAT_ENDPOINT)
@@ -105,24 +193,24 @@ class DeepSeekApiClient {
                     .addHeader("Authorization", "Bearer $apiKey")
                     .post(jsonBody.toRequestBody("application/json".toMediaType()))
                     .build()
-                
+
                 // Execute request
                 val response = client.newCall(request).execute()
                 val responseBody = response.body?.string()
-                
+
                 if (!response.isSuccessful || responseBody == null) {
                     handleErrorResponse(response.code, responseBody)
                 }
-                
+
                 // Parse response
                 val jsonResponse = JSONObject(responseBody)
-                
+
                 // Check for errors in the response
                 if (jsonResponse.has("error")) {
                     val error = jsonResponse.getJSONObject("error")
                     val message = error.getString("message")
                     val type = error.getString("type")
-                    
+
                     throw when (type) {
                         "invalid_request_error" -> ApiInvalidRequestException("Invalid request: $message")
                         "authentication_error" -> ApiAuthenticationException("Authentication error: $message")
@@ -131,16 +219,16 @@ class DeepSeekApiClient {
                         else -> IOException("API error: $message")
                     }
                 }
-                
+
                 // Extract the generated text
                 val choices = jsonResponse.getJSONArray("choices")
                 if (choices.length() == 0) {
                     return@retryWithExponentialBackoff Result.failure(IOException("No response from DeepSeek API"))
                 }
-                
+
                 val message = choices.getJSONObject(0).getJSONObject("message")
                 val content = message.getString("content")
-                
+
                 Result.success(content)
             } catch (e: Exception) {
                 Log.e(TAG, "Error in DeepSeek API call", e)
@@ -148,7 +236,7 @@ class DeepSeekApiClient {
             }
         }
     }
-    
+
     /**
      * Generate tags from content
      */
@@ -161,23 +249,22 @@ class DeepSeekApiClient {
             try {
                 // Create system prompt
                 val systemPrompt = "You are a helpful assistant that generates relevant tags for content. Generate tags that accurately represent the main topics, concepts, and entities in the content."
-                
+
                 // Create user prompt
                 val userPrompt = "Generate up to ${options.maxTags} tags for the following content in ${options.language}. Return only the tags as a comma-separated list, without any additional text or explanation:\n\n$content"
-                
-                // Create request body
+
+                // Create request body using the formatter
+                val messages = DeepSeekPromptFormatter.formatPrompt(systemPrompt, userPrompt)
+
                 val requestBody = DeepSeekRequest(
                     model = DEFAULT_MODEL,
-                    messages = listOf(
-                        DeepSeekMessage(role = "system", content = systemPrompt),
-                        DeepSeekMessage(role = "user", content = userPrompt)
-                    ),
+                    messages = messages,
                     temperature = 0.3,
                     maxTokens = 100
                 )
-                
+
                 val jsonBody = gson.toJson(requestBody)
-                
+
                 // Create request
                 val request = Request.Builder()
                     .url(CHAT_ENDPOINT)
@@ -185,24 +272,24 @@ class DeepSeekApiClient {
                     .addHeader("Authorization", "Bearer $apiKey")
                     .post(jsonBody.toRequestBody("application/json".toMediaType()))
                     .build()
-                
+
                 // Execute request
                 val response = client.newCall(request).execute()
                 val responseBody = response.body?.string()
-                
+
                 if (!response.isSuccessful || responseBody == null) {
                     handleErrorResponse(response.code, responseBody)
                 }
-                
+
                 // Parse response
                 val jsonResponse = JSONObject(responseBody)
-                
+
                 // Check for errors in the response
                 if (jsonResponse.has("error")) {
                     val error = jsonResponse.getJSONObject("error")
                     val message = error.getString("message")
                     val type = error.getString("type")
-                    
+
                     throw when (type) {
                         "invalid_request_error" -> ApiInvalidRequestException("Invalid request: $message")
                         "authentication_error" -> ApiAuthenticationException("Authentication error: $message")
@@ -211,22 +298,22 @@ class DeepSeekApiClient {
                         else -> IOException("API error: $message")
                     }
                 }
-                
+
                 // Extract the generated text
                 val choices = jsonResponse.getJSONArray("choices")
                 if (choices.length() == 0) {
                     return@retryWithExponentialBackoff Result.failure(IOException("No response from DeepSeek API"))
                 }
-                
+
                 val message = choices.getJSONObject(0).getJSONObject("message")
                 val content = message.getString("content")
-                
+
                 // Parse tags from comma-separated list
                 val tags = content.split(",")
                     .map { it.trim() }
                     .filter { it.isNotEmpty() }
                     .take(options.maxTags)
-                
+
                 Result.success(tags)
             } catch (e: Exception) {
                 Log.e(TAG, "Error in DeepSeek API call for tag generation", e)
@@ -234,7 +321,7 @@ class DeepSeekApiClient {
             }
         }
     }
-    
+
     /**
      * Generate a title from content
      */
@@ -247,23 +334,22 @@ class DeepSeekApiClient {
             try {
                 // Create system prompt
                 val systemPrompt = "You are a helpful assistant that generates concise, descriptive titles for content. Generate a title that accurately represents the main topic or theme of the content."
-                
+
                 // Create user prompt
                 val userPrompt = "Generate a title for the following content in ${options.language}. The title should be concise (maximum ${options.maxLength} characters) and descriptive. Return only the title, without any additional text or explanation:\n\n$content"
-                
-                // Create request body
+
+                // Create request body using the formatter
+                val messages = DeepSeekPromptFormatter.formatPrompt(systemPrompt, userPrompt)
+
                 val requestBody = DeepSeekRequest(
                     model = DEFAULT_MODEL,
-                    messages = listOf(
-                        DeepSeekMessage(role = "system", content = systemPrompt),
-                        DeepSeekMessage(role = "user", content = userPrompt)
-                    ),
+                    messages = messages,
                     temperature = 0.3,
                     maxTokens = 50
                 )
-                
+
                 val jsonBody = gson.toJson(requestBody)
-                
+
                 // Create request
                 val request = Request.Builder()
                     .url(CHAT_ENDPOINT)
@@ -271,24 +357,24 @@ class DeepSeekApiClient {
                     .addHeader("Authorization", "Bearer $apiKey")
                     .post(jsonBody.toRequestBody("application/json".toMediaType()))
                     .build()
-                
+
                 // Execute request
                 val response = client.newCall(request).execute()
                 val responseBody = response.body?.string()
-                
+
                 if (!response.isSuccessful || responseBody == null) {
                     handleErrorResponse(response.code, responseBody)
                 }
-                
+
                 // Parse response
                 val jsonResponse = JSONObject(responseBody)
-                
+
                 // Check for errors in the response
                 if (jsonResponse.has("error")) {
                     val error = jsonResponse.getJSONObject("error")
                     val message = error.getString("message")
                     val type = error.getString("type")
-                    
+
                     throw when (type) {
                         "invalid_request_error" -> ApiInvalidRequestException("Invalid request: $message")
                         "authentication_error" -> ApiAuthenticationException("Authentication error: $message")
@@ -297,16 +383,16 @@ class DeepSeekApiClient {
                         else -> IOException("API error: $message")
                     }
                 }
-                
+
                 // Extract the generated text
                 val choices = jsonResponse.getJSONArray("choices")
                 if (choices.length() == 0) {
                     return@retryWithExponentialBackoff Result.failure(IOException("No response from DeepSeek API"))
                 }
-                
+
                 val message = choices.getJSONObject(0).getJSONObject("message")
                 val title = message.getString("content").trim()
-                
+
                 Result.success(title)
             } catch (e: Exception) {
                 Log.e(TAG, "Error in DeepSeek API call for title generation", e)
@@ -314,7 +400,7 @@ class DeepSeekApiClient {
             }
         }
     }
-    
+
     /**
      * Handle error responses from the DeepSeek API
      */
@@ -338,7 +424,7 @@ class DeepSeekApiClient {
         } catch (e: Exception) {
             "Error parsing error response: ${e.message}"
         }
-        
+
         throw when (code) {
             401, 403 -> ApiAuthenticationException("Authentication error: $errorMessage")
             400 -> ApiInvalidRequestException("Invalid request: $errorMessage")
@@ -347,7 +433,7 @@ class DeepSeekApiClient {
             else -> IOException("HTTP error $code: $errorMessage")
         }
     }
-    
+
     // Data classes for API requests and responses
     data class DeepSeekRequest(
         val model: String,
@@ -355,7 +441,7 @@ class DeepSeekApiClient {
         val temperature: Double = 0.7,
         @SerializedName("max_tokens") val maxTokens: Int = 1000
     )
-    
+
     data class DeepSeekMessage(
         val role: String,
         val content: String

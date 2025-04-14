@@ -2,7 +2,10 @@ package com.secondbrain.data.repository
 
 import com.secondbrain.data.db.CardDao
 import com.secondbrain.data.model.Card
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -12,9 +15,11 @@ class CardRepository @Inject constructor(
 ) {
     suspend fun saveCard(card: Card): Result<String> {
         return try {
+            android.util.Log.d("CardRepository", "Saving card with ID: ${card.id}, title: ${card.title}, thumbnailUrl: ${card.thumbnailUrl}")
             cardDao.insertCard(card)
             Result.success(card.id)
         } catch (e: Exception) {
+            android.util.Log.e("CardRepository", "Error saving card: ${card.id}", e)
             Result.failure(e)
         }
     }
@@ -29,7 +34,17 @@ class CardRepository @Inject constructor(
     }
 
     fun getCardById(id: String): Flow<Card?> {
-        return cardDao.getCardById(id)
+        android.util.Log.d("CardRepository", "Getting card by ID: $id")
+        return cardDao.getCardById(id).also { flow ->
+            kotlinx.coroutines.GlobalScope.launch {
+                try {
+                    val card = flow.first()
+                    android.util.Log.d("CardRepository", "Retrieved card: $id, thumbnailUrl: ${card?.thumbnailUrl}")
+                } catch (e: Exception) {
+                    android.util.Log.e("CardRepository", "Error retrieving card: $id", e)
+                }
+            }
+        }
     }
 
     suspend fun deleteCard(id: String): Result<Boolean> {
@@ -46,6 +61,30 @@ class CardRepository @Inject constructor(
             cardDao.updateCard(card)
             Result.success(true)
         } catch (e: Exception) {
+            android.util.Log.e("CardRepository", "Error updating card: ${card.id}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Update only the thumbnail URL for a card
+     */
+    suspend fun updateCardThumbnail(cardId: String, thumbnailUrl: String): Result<Boolean> {
+        return try {
+            // Get the current card
+            val card = cardDao.getCardByIdSync(cardId)
+            if (card != null) {
+                // Update only the thumbnail URL
+                val updatedCard = card.copy(thumbnailUrl = thumbnailUrl)
+                cardDao.updateCard(updatedCard)
+                android.util.Log.d("CardRepository", "Updated thumbnail for card: $cardId to $thumbnailUrl")
+                Result.success(true)
+            } else {
+                android.util.Log.e("CardRepository", "Card not found: $cardId")
+                Result.failure(Exception("Card not found: $cardId"))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CardRepository", "Error updating card thumbnail: $cardId", e)
             Result.failure(e)
         }
     }

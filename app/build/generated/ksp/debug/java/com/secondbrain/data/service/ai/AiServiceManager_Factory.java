@@ -2,6 +2,7 @@ package com.secondbrain.data.service.ai;
 
 import android.content.Context;
 import com.secondbrain.data.repository.SettingsRepository;
+import com.secondbrain.data.repository.SystemPromptRepository;
 import dagger.internal.DaggerGenerated;
 import dagger.internal.Factory;
 import dagger.internal.QualifierMetadata;
@@ -27,6 +28,8 @@ public final class AiServiceManager_Factory implements Factory<AiServiceManager>
 
   private final Provider<SettingsRepository> settingsRepositoryProvider;
 
+  private final Provider<SystemPromptRepository> systemPromptRepositoryProvider;
+
   private final Provider<GeminiProvider> geminiProvider;
 
   private final Provider<OpenAiProvider> openAiProvider;
@@ -39,11 +42,13 @@ public final class AiServiceManager_Factory implements Factory<AiServiceManager>
 
   public AiServiceManager_Factory(Provider<Context> contextProvider,
       Provider<SettingsRepository> settingsRepositoryProvider,
+      Provider<SystemPromptRepository> systemPromptRepositoryProvider,
       Provider<GeminiProvider> geminiProvider, Provider<OpenAiProvider> openAiProvider,
       Provider<ClaudeProvider> claudeProvider, Provider<DeepSeekProvider> deepSeekProvider,
       Provider<OpenRouterProvider> openRouterProvider) {
     this.contextProvider = contextProvider;
     this.settingsRepositoryProvider = settingsRepositoryProvider;
+    this.systemPromptRepositoryProvider = systemPromptRepositoryProvider;
     this.geminiProvider = geminiProvider;
     this.openAiProvider = openAiProvider;
     this.claudeProvider = claudeProvider;
@@ -53,20 +58,22 @@ public final class AiServiceManager_Factory implements Factory<AiServiceManager>
 
   @Override
   public AiServiceManager get() {
-    return newInstance(contextProvider.get(), settingsRepositoryProvider.get(), geminiProvider.get(), openAiProvider.get(), claudeProvider.get(), deepSeekProvider.get(), openRouterProvider.get());
+    return newInstance(contextProvider.get(), settingsRepositoryProvider.get(), systemPromptRepositoryProvider.get(), geminiProvider.get(), openAiProvider.get(), claudeProvider.get(), deepSeekProvider.get(), openRouterProvider.get());
   }
 
   public static AiServiceManager_Factory create(Provider<Context> contextProvider,
       Provider<SettingsRepository> settingsRepositoryProvider,
+      Provider<SystemPromptRepository> systemPromptRepositoryProvider,
       Provider<GeminiProvider> geminiProvider, Provider<OpenAiProvider> openAiProvider,
       Provider<ClaudeProvider> claudeProvider, Provider<DeepSeekProvider> deepSeekProvider,
       Provider<OpenRouterProvider> openRouterProvider) {
-    return new AiServiceManager_Factory(contextProvider, settingsRepositoryProvider, geminiProvider, openAiProvider, claudeProvider, deepSeekProvider, openRouterProvider);
+    return new AiServiceManager_Factory(contextProvider, settingsRepositoryProvider, systemPromptRepositoryProvider, geminiProvider, openAiProvider, claudeProvider, deepSeekProvider, openRouterProvider);
   }
 
   public static AiServiceManager newInstance(Context context, SettingsRepository settingsRepository,
-      GeminiProvider geminiProvider, OpenAiProvider openAiProvider, ClaudeProvider claudeProvider,
+      SystemPromptRepository systemPromptRepository, GeminiProvider geminiProvider,
+      OpenAiProvider openAiProvider, ClaudeProvider claudeProvider,
       DeepSeekProvider deepSeekProvider, OpenRouterProvider openRouterProvider) {
-    return new AiServiceManager(context, settingsRepository, geminiProvider, openAiProvider, claudeProvider, deepSeekProvider, openRouterProvider);
+    return new AiServiceManager(context, settingsRepository, systemPromptRepository, geminiProvider, openAiProvider, claudeProvider, deepSeekProvider, openRouterProvider);
   }
 }

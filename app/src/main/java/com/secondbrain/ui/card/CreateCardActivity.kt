@@ -1,17 +1,25 @@
 package com.secondbrain.ui.card
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -57,7 +66,17 @@ class CreateCardActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
+                        val viewModel: CreateCardViewModel = hiltViewModel()
+
+                        // Set up navigation to AI model selection
+                        viewModel.onNavigateToModelSelection = {
+                            // Navigate to the AI settings screen
+                            val intent = Intent(this@CreateCardActivity, com.secondbrain.ui.settings.SettingsActivity::class.java)
+                            startActivity(intent)
+                        }
+
                         CreateCardScreen(
+                            viewModel = viewModel,
                             onClose = { finish() }
                         )
                     }
@@ -315,6 +334,27 @@ fun UrlTab(viewModel: CreateCardViewModel) {
             )
         }
 
+        // Show selected model when summary is enabled
+        if (viewModel.urlSummaryEnabled) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Using: ${viewModel.selectedModelDisplayName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                TextButton(
+                    onClick = { viewModel.onNavigateToModelSelection() },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("Change")
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.weight(1f))
 
         // Tip card
@@ -553,6 +593,27 @@ fun SearchTab(viewModel: CreateCardViewModel) {
                 checked = viewModel.searchSummaryEnabled,
                 onCheckedChange = { viewModel.searchSummaryEnabled = it }
             )
+        }
+
+        // Show selected model when summary is enabled
+        if (viewModel.searchSummaryEnabled) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Using: ${viewModel.selectedModelDisplayName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                TextButton(
+                    onClick = { viewModel.onNavigateToModelSelection() },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("Change")
+                }
+            }
         }
 
         // Selected result info
@@ -902,9 +963,31 @@ fun PdfTab(viewModel: CreateCardViewModel) {
                 onCheckedChange = { viewModel.pdfSummaryEnabled = it }
             )
         }
+
+        // Show selected model when summary is enabled
+        if (viewModel.pdfSummaryEnabled) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Using: ${viewModel.selectedModelDisplayName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                TextButton(
+                    onClick = { viewModel.onNavigateToModelSelection() },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("Change")
+                }
+            }
+        }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoteTab(viewModel: CreateCardViewModel) {
     Column(
@@ -992,23 +1075,346 @@ fun NoteTab(viewModel: CreateCardViewModel) {
             )
         }
 
+        // Show selected model when summary is enabled
+        if (viewModel.noteSummaryEnabled) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Using: ${viewModel.selectedModelDisplayName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                TextButton(
+                    onClick = { viewModel.onNavigateToModelSelection() },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("Change")
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         // Formatting toolbar
-        Row(
+        Card(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+            )
         ) {
-            TextButton(onClick = { /* Bold */ }) { Text("B", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
-            TextButton(onClick = { /* Italic */ }) { Text("I", fontStyle = androidx.compose.ui.text.font.FontStyle.Italic) }
-            TextButton(onClick = { /* Underline */ }) { Text("U") }
-            TextButton(onClick = { /* List */ }) { Text("≡") }
-            TextButton(onClick = { /* Bullet */ }) { Text("•") }
-            TextButton(onClick = { /* Checkbox */ }) { Text("[]") }
-            TextButton(onClick = { /* Code */ }) { Text("<>") }
-            TextButton(onClick = { /* Link */ }) { Text("🔗") }
-            TextButton(onClick = { /* Image */ }) { Text("📷") }
-            TextButton(onClick = { /* Color */ }) { Text("🎨") }
+            Column(modifier = Modifier.padding(8.dp)) {
+                Text(
+                    text = "Text Formatting",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                // First row of formatting options
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    // Bold
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = {
+                            PlainTooltip {
+                                Text("Bold (** **)")
+                            }
+                        },
+                        state = rememberTooltipState()
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.applyBoldFormatting() },
+                            modifier = Modifier.size(40.dp),
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                        Text(
+                            "B",
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    }
+
+                    // Italic
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = {
+                            PlainTooltip {
+                                Text("Italic (* *)")
+                            }
+                        },
+                        state = rememberTooltipState()
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.applyItalicFormatting() },
+                            modifier = Modifier.size(40.dp),
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                        Text(
+                            "I",
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    }
+
+                    // Underline
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = {
+                            PlainTooltip {
+                                Text("Underline (__ __)")
+                            }
+                        },
+                        state = rememberTooltipState()
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.applyUnderlineFormatting() },
+                            modifier = Modifier.size(40.dp),
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                        Text(
+                            "U",
+                            style = MaterialTheme.typography.titleMedium,
+                            textDecoration = TextDecoration.Underline
+                        )
+                    }
+                    }
+
+                    // Heading
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = {
+                            PlainTooltip {
+                                Text("Heading (## )")
+                            }
+                        },
+                        state = rememberTooltipState()
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.applyHeadingFormatting() },
+                            modifier = Modifier.size(40.dp),
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                        Text(
+                            "H",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                    }
+                    }
+
+                    // Code
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = {
+                            PlainTooltip {
+                                Text("Code (` ` or ```)")
+                            }
+                        },
+                        state = rememberTooltipState()
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.applyCodeFormatting() },
+                            modifier = Modifier.size(40.dp),
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                        Text(
+                            "<>",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        )
+                    }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Second row of formatting options
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    // Bullet list
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = {
+                            PlainTooltip {
+                                Text("Bullet List (- )")
+                            }
+                        },
+                        state = rememberTooltipState()
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.applyBulletPoint() },
+                            modifier = Modifier.size(40.dp),
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                        Text(
+                            "•",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
+                    }
+
+                    // Numbered list
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = {
+                            PlainTooltip {
+                                Text("Numbered List (1. )")
+                            }
+                        },
+                        state = rememberTooltipState()
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.applyNumberedList() },
+                            modifier = Modifier.size(40.dp),
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                        Text(
+                            "1.",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    }
+
+                    // Checkbox
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = {
+                            PlainTooltip {
+                                Text("Checkbox (- [ ] )")
+                            }
+                        },
+                        state = rememberTooltipState()
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.applyCheckbox() },
+                            modifier = Modifier.size(40.dp),
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                        Text(
+                            "☐",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    }
+
+                    // Link
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = {
+                            PlainTooltip {
+                                Text("Link ([text](url))")
+                            }
+                        },
+                        state = rememberTooltipState()
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.applyLinkFormatting() },
+                            modifier = Modifier.size(40.dp),
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                        Text(
+                            "🔗",
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                    }
+                    }
+
+                    // Image
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                        tooltip = {
+                            PlainTooltip {
+                                Text("Image (![alt](url))")
+                            }
+                        },
+                        state = rememberTooltipState()
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.applyImageFormatting() },
+                            modifier = Modifier.size(40.dp),
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                        Text(
+                            "📷",
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                    }
+                    }
+                }
+            }
+        }
+
+        // Markdown preview
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (viewModel.noteContent.isNotEmpty()) {
+            var showPreview by remember { mutableStateOf(false) }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(
+                    onClick = { showPreview = true }
+                ) {
+                    Text("Preview")
+                }
+            }
+
+            // Preview dialog
+            if (showPreview) {
+                AlertDialog(
+                    onDismissRequest = { showPreview = false },
+                    title = { Text("Markdown Preview") },
+                    text = {
+                        Column(
+                            modifier = Modifier
+                                .verticalScroll(rememberScrollState())
+                                .padding(8.dp)
+                        ) {
+                            com.secondbrain.ui.components.MarkdownText(
+                                markdown = viewModel.noteContent,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showPreview = false }) {
+                            Text("Close")
+                        }
+                    }
+                )
+            }
         }
     }
 }
@@ -1137,6 +1543,27 @@ fun AudioTab(viewModel: CreateCardViewModel) {
                 checked = viewModel.audioSummaryEnabled,
                 onCheckedChange = { viewModel.audioSummaryEnabled = it }
             )
+        }
+
+        // Show selected model when summary is enabled
+        if (viewModel.audioSummaryEnabled) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Using: ${viewModel.selectedModelDisplayName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                TextButton(
+                    onClick = { viewModel.onNavigateToModelSelection() },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("Change")
+                }
+            }
         }
     }
 }

@@ -32,6 +32,11 @@ class SettingsRepository @Inject constructor(
         val PINNED_CARDS_KEY = stringPreferencesKey("pinned_cards")
         val COST_PREFERENCE_KEY = stringPreferencesKey("cost_preference")
         val SELECTED_MODEL_ID_KEY = stringPreferencesKey("selected_model_id")
+        val SELECTED_OPENAI_MODEL_KEY = stringPreferencesKey("selected_openai_model")
+        val SELECTED_CLAUDE_MODEL_KEY = stringPreferencesKey("selected_claude_model")
+        val SELECTED_GEMINI_MODEL_KEY = stringPreferencesKey("selected_gemini_model")
+        val SELECTED_DEEPSEEK_MODEL_KEY = stringPreferencesKey("selected_deepseek_model")
+        val SELECTED_OPENROUTER_MODEL_KEY = stringPreferencesKey("selected_openrouter_model")
     }
 
     // Dark mode settings
@@ -121,5 +126,72 @@ class SettingsRepository @Inject constructor(
     // OpenRouter API key
     suspend fun getOpenRouterApiKey(): String {
         return com.secondbrain.util.SecureStorage(context).getString(com.secondbrain.util.SecureStorage.KEY_OPENROUTER_API_KEY)
+    }
+
+    // Provider-specific model selection
+
+    // OpenAI
+    suspend fun getSelectedOpenAiModel(): String? {
+        return dataStore.data.map { preferences ->
+            preferences[SELECTED_OPENAI_MODEL_KEY]
+        }.firstOrNull()
+    }
+
+    suspend fun saveSelectedOpenAiModel(modelId: String) {
+        dataStore.edit { preferences ->
+            preferences[SELECTED_OPENAI_MODEL_KEY] = modelId
+        }
+    }
+
+    // Claude
+    suspend fun getSelectedClaudeModel(): String? {
+        return dataStore.data.map { preferences ->
+            preferences[SELECTED_CLAUDE_MODEL_KEY]
+        }.firstOrNull()
+    }
+
+    suspend fun saveSelectedClaudeModel(modelId: String) {
+        dataStore.edit { preferences ->
+            preferences[SELECTED_CLAUDE_MODEL_KEY] = modelId
+        }
+    }
+
+    // Gemini
+    suspend fun getSelectedGeminiModel(): String? {
+        return dataStore.data.map { preferences ->
+            preferences[SELECTED_GEMINI_MODEL_KEY]
+        }.firstOrNull()
+    }
+
+    suspend fun saveSelectedGeminiModel(modelId: String) {
+        dataStore.edit { preferences ->
+            preferences[SELECTED_GEMINI_MODEL_KEY] = modelId
+        }
+    }
+
+    // DeepSeek
+    suspend fun getSelectedDeepSeekModel(): String? {
+        return dataStore.data.map { preferences ->
+            preferences[SELECTED_DEEPSEEK_MODEL_KEY]
+        }.firstOrNull()
+    }
+
+    suspend fun saveSelectedDeepSeekModel(modelId: String) {
+        dataStore.edit { preferences ->
+            preferences[SELECTED_DEEPSEEK_MODEL_KEY] = modelId
+        }
+    }
+
+    // OpenRouter
+    suspend fun getSelectedOpenRouterModel(): String? {
+        return dataStore.data.map { preferences ->
+            preferences[SELECTED_OPENROUTER_MODEL_KEY]
+        }.firstOrNull()
+    }
+
+    suspend fun saveSelectedOpenRouterModel(modelId: String) {
+        dataStore.edit { preferences ->
+            preferences[SELECTED_OPENROUTER_MODEL_KEY] = modelId
+        }
     }
 }

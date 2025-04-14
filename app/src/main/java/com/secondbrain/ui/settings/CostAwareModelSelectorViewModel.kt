@@ -150,7 +150,11 @@ class CostAwareModelSelectorViewModel @Inject constructor(
 
         // Save selection
         viewModelScope.launch {
+            // Save the model ID for future reference
             settingsRepository.saveSelectedModelId(model.id)
+
+            // Save the full model name with provider for display
+            settingsRepository.setDefaultAiModel("OpenRouter - ${model.name}")
         }
     }
 

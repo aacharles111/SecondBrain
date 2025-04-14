@@ -19,7 +19,7 @@ class SecureStorage @Inject constructor(
     companion object {
         private const val TAG = "SecureStorage"
         private const val ENCRYPTED_PREFS_FILE_NAME = "secure_prefs"
-        
+
         // Keys for API keys
         const val KEY_GEMINI_API_KEY = "gemini_api_key"
         const val KEY_OPENAI_API_KEY = "openai_api_key"
@@ -27,13 +27,13 @@ class SecureStorage @Inject constructor(
         const val KEY_DEEPSEEK_API_KEY = "deepseek_api_key"
         const val KEY_OPENROUTER_API_KEY = "openrouter_api_key"
     }
-    
+
     private val masterKey: MasterKey by lazy {
         MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
     }
-    
+
     private val encryptedSharedPreferences by lazy {
         try {
             EncryptedSharedPreferences.create(
@@ -49,7 +49,7 @@ class SecureStorage @Inject constructor(
             context.getSharedPreferences(ENCRYPTED_PREFS_FILE_NAME, Context.MODE_PRIVATE)
         }
     }
-    
+
     /**
      * Store a string value securely
      */
@@ -60,7 +60,14 @@ class SecureStorage @Inject constructor(
             Log.e(TAG, "Error storing string for key: $key", e)
         }
     }
-    
+
+    /**
+     * Alias for storeString for consistency
+     */
+    fun putString(key: String, value: String) {
+        storeString(key, value)
+    }
+
     /**
      * Retrieve a string value securely
      */
@@ -72,7 +79,7 @@ class SecureStorage @Inject constructor(
             defaultValue
         }
     }
-    
+
     /**
      * Check if a key exists
      */
@@ -84,7 +91,7 @@ class SecureStorage @Inject constructor(
             false
         }
     }
-    
+
     /**
      * Remove a key-value pair
      */
@@ -95,7 +102,7 @@ class SecureStorage @Inject constructor(
             Log.e(TAG, "Error removing key: $key", e)
         }
     }
-    
+
     /**
      * Clear all stored values
      */

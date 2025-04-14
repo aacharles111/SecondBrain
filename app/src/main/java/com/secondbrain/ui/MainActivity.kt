@@ -2,17 +2,26 @@ package com.secondbrain.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
+import com.secondbrain.data.service.ThumbnailUpdateService
 import com.secondbrain.ui.theme.SecondBrainTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var thumbnailUpdateService: ThumbnailUpdateService
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -35,6 +44,21 @@ class MainActivity : ComponentActivity() {
                 color = MaterialTheme.colorScheme.background
             ) {
                 SecondBrainApp(sharedText = sharedText)
+            }
+        }
+
+        // Update thumbnails for all cards in the background
+        updateThumbnails()
+    }
+
+    private fun updateThumbnails() {
+        lifecycleScope.launch {
+            try {
+                Log.d("MainActivity", "Starting thumbnail update for all cards")
+                thumbnailUpdateService.updateAllCardThumbnails()
+                Log.d("MainActivity", "Finished thumbnail update for all cards")
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error updating thumbnails", e)
             }
         }
     }

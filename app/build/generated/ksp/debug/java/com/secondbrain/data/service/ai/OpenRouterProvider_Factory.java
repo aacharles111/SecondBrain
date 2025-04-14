@@ -2,6 +2,7 @@ package com.secondbrain.data.service.ai;
 
 import android.content.Context;
 import com.secondbrain.data.repository.SettingsRepository;
+import com.secondbrain.util.SecureStorage;
 import dagger.internal.DaggerGenerated;
 import dagger.internal.Factory;
 import dagger.internal.QualifierMetadata;
@@ -27,24 +28,29 @@ public final class OpenRouterProvider_Factory implements Factory<OpenRouterProvi
 
   private final Provider<SettingsRepository> settingsRepositoryProvider;
 
+  private final Provider<SecureStorage> secureStorageProvider;
+
   public OpenRouterProvider_Factory(Provider<Context> contextProvider,
-      Provider<SettingsRepository> settingsRepositoryProvider) {
+      Provider<SettingsRepository> settingsRepositoryProvider,
+      Provider<SecureStorage> secureStorageProvider) {
     this.contextProvider = contextProvider;
     this.settingsRepositoryProvider = settingsRepositoryProvider;
+    this.secureStorageProvider = secureStorageProvider;
   }
 
   @Override
   public OpenRouterProvider get() {
-    return newInstance(contextProvider.get(), settingsRepositoryProvider.get());
+    return newInstance(contextProvider.get(), settingsRepositoryProvider.get(), secureStorageProvider.get());
   }
 
   public static OpenRouterProvider_Factory create(Provider<Context> contextProvider,
-      Provider<SettingsRepository> settingsRepositoryProvider) {
-    return new OpenRouterProvider_Factory(contextProvider, settingsRepositoryProvider);
+      Provider<SettingsRepository> settingsRepositoryProvider,
+      Provider<SecureStorage> secureStorageProvider) {
+    return new OpenRouterProvider_Factory(contextProvider, settingsRepositoryProvider, secureStorageProvider);
   }
 
   public static OpenRouterProvider newInstance(Context context,
-      SettingsRepository settingsRepository) {
-    return new OpenRouterProvider(context, settingsRepository);
+      SettingsRepository settingsRepository, SecureStorage secureStorage) {
+    return new OpenRouterProvider(context, settingsRepository, secureStorage);
   }
 }

@@ -11,6 +11,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.secondbrain.data.model.CardType
 import com.secondbrain.data.service.ai.worker.AiProcessingWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,7 +30,7 @@ class AiProcessingService @Inject constructor(
 ) {
     companion object {
         private const val TAG = "AiProcessingService"
-        
+
         // Work names
         private const val WORK_SUMMARIZE_PREFIX = "summarize_"
         private const val WORK_TRANSCRIBE_PREFIX = "transcribe_"
@@ -37,13 +38,13 @@ class AiProcessingService @Inject constructor(
         private const val WORK_GENERATE_TAGS_PREFIX = "generate_tags_"
         private const val WORK_GENERATE_TITLE_PREFIX = "generate_title_"
     }
-    
+
     private val workManager = WorkManager.getInstance(context)
-    
+
     // Processing state
     private val _processingState = MutableStateFlow<Map<String, ProcessingState>>(emptyMap())
     val processingState: StateFlow<Map<String, ProcessingState>> = _processingState.asStateFlow()
-    
+
     /**
      * Summarize content in the background
      */
@@ -54,10 +55,11 @@ class AiProcessingService @Inject constructor(
         maxLength: Int? = null,
         customInstructions: String? = null,
         aiModel: String? = null,
+        contentType: CardType? = null,
         taskId: String = UUID.randomUUID().toString()
     ): String {
         Log.d(TAG, "Scheduling summarize task: $taskId")
-        
+
         // Create input data
         val inputData = Data.Builder()
             .putString(AiProcessingWorker.KEY_TASK_TYPE, AiProcessingWorker.TASK_SUMMARIZE)
@@ -68,31 +70,32 @@ class AiProcessingService @Inject constructor(
                 maxLength?.let { putInt(AiProcessingWorker.KEY_MAX_LENGTH, it) }
                 customInstructions?.let { putString(AiProcessingWorker.KEY_CUSTOM_INSTRUCTIONS, it) }
                 aiModel?.let { putString(AiProcessingWorker.KEY_AI_MODEL, it) }
+                contentType?.let { putString(AiProcessingWorker.KEY_CONTENT_TYPE, it.name) }
             }
             .build()
-        
+
         // Create work request
         val workRequest = OneTimeWorkRequestBuilder<AiProcessingWorker>()
             .setInputData(inputData)
             .setConstraints(createNetworkConstraints())
             .build()
-        
+
         // Enqueue work
         workManager.enqueueUniqueWork(
             "$WORK_SUMMARIZE_PREFIX$taskId",
             ExistingWorkPolicy.REPLACE,
             workRequest
         )
-        
+
         // Update processing state
         updateProcessingState(taskId, ProcessingState.PROCESSING)
-        
+
         // Observe work
         observeWork(workRequest.id, taskId)
-        
+
         return taskId
     }
-    
+
     /**
      * Transcribe audio in the background
      */
@@ -103,7 +106,7 @@ class AiProcessingService @Inject constructor(
         taskId: String = UUID.randomUUID().toString()
     ): String {
         Log.d(TAG, "Scheduling transcribe task: $taskId")
-        
+
         // Create input data
         val inputData = Data.Builder()
             .putString(AiProcessingWorker.KEY_TASK_TYPE, AiProcessingWorker.TASK_TRANSCRIBE)
@@ -113,29 +116,29 @@ class AiProcessingService @Inject constructor(
                 aiModel?.let { putString(AiProcessingWorker.KEY_AI_MODEL, it) }
             }
             .build()
-        
+
         // Create work request
         val workRequest = OneTimeWorkRequestBuilder<AiProcessingWorker>()
             .setInputData(inputData)
             .setConstraints(createNetworkConstraints())
             .build()
-        
+
         // Enqueue work
         workManager.enqueueUniqueWork(
             "$WORK_TRANSCRIBE_PREFIX$taskId",
             ExistingWorkPolicy.REPLACE,
             workRequest
         )
-        
+
         // Update processing state
         updateProcessingState(taskId, ProcessingState.PROCESSING)
-        
+
         // Observe work
         observeWork(workRequest.id, taskId)
-        
+
         return taskId
     }
-    
+
     /**
      * Extract text from image in the background
      */
@@ -146,7 +149,7 @@ class AiProcessingService @Inject constructor(
         taskId: String = UUID.randomUUID().toString()
     ): String {
         Log.d(TAG, "Scheduling extract text task: $taskId")
-        
+
         // Create input data
         val inputData = Data.Builder()
             .putString(AiProcessingWorker.KEY_TASK_TYPE, AiProcessingWorker.TASK_EXTRACT_TEXT)
@@ -156,29 +159,29 @@ class AiProcessingService @Inject constructor(
                 aiModel?.let { putString(AiProcessingWorker.KEY_AI_MODEL, it) }
             }
             .build()
-        
+
         // Create work request
         val workRequest = OneTimeWorkRequestBuilder<AiProcessingWorker>()
             .setInputData(inputData)
             .setConstraints(createNetworkConstraints())
             .build()
-        
+
         // Enqueue work
         workManager.enqueueUniqueWork(
             "$WORK_EXTRACT_TEXT_PREFIX$taskId",
             ExistingWorkPolicy.REPLACE,
             workRequest
         )
-        
+
         // Update processing state
         updateProcessingState(taskId, ProcessingState.PROCESSING)
-        
+
         // Observe work
         observeWork(workRequest.id, taskId)
-        
+
         return taskId
     }
-    
+
     /**
      * Generate tags in the background
      */
@@ -190,7 +193,7 @@ class AiProcessingService @Inject constructor(
         taskId: String = UUID.randomUUID().toString()
     ): String {
         Log.d(TAG, "Scheduling generate tags task: $taskId")
-        
+
         // Create input data
         val inputData = Data.Builder()
             .putString(AiProcessingWorker.KEY_TASK_TYPE, AiProcessingWorker.TASK_GENERATE_TAGS)
@@ -201,29 +204,29 @@ class AiProcessingService @Inject constructor(
                 aiModel?.let { putString(AiProcessingWorker.KEY_AI_MODEL, it) }
             }
             .build()
-        
+
         // Create work request
         val workRequest = OneTimeWorkRequestBuilder<AiProcessingWorker>()
             .setInputData(inputData)
             .setConstraints(createNetworkConstraints())
             .build()
-        
+
         // Enqueue work
         workManager.enqueueUniqueWork(
             "$WORK_GENERATE_TAGS_PREFIX$taskId",
             ExistingWorkPolicy.REPLACE,
             workRequest
         )
-        
+
         // Update processing state
         updateProcessingState(taskId, ProcessingState.PROCESSING)
-        
+
         // Observe work
         observeWork(workRequest.id, taskId)
-        
+
         return taskId
     }
-    
+
     /**
      * Generate title in the background
      */
@@ -234,7 +237,7 @@ class AiProcessingService @Inject constructor(
         taskId: String = UUID.randomUUID().toString()
     ): String {
         Log.d(TAG, "Scheduling generate title task: $taskId")
-        
+
         // Create input data
         val inputData = Data.Builder()
             .putString(AiProcessingWorker.KEY_TASK_TYPE, AiProcessingWorker.TASK_GENERATE_TITLE)
@@ -244,53 +247,53 @@ class AiProcessingService @Inject constructor(
                 aiModel?.let { putString(AiProcessingWorker.KEY_AI_MODEL, it) }
             }
             .build()
-        
+
         // Create work request
         val workRequest = OneTimeWorkRequestBuilder<AiProcessingWorker>()
             .setInputData(inputData)
             .setConstraints(createNetworkConstraints())
             .build()
-        
+
         // Enqueue work
         workManager.enqueueUniqueWork(
             "$WORK_GENERATE_TITLE_PREFIX$taskId",
             ExistingWorkPolicy.REPLACE,
             workRequest
         )
-        
+
         // Update processing state
         updateProcessingState(taskId, ProcessingState.PROCESSING)
-        
+
         // Observe work
         observeWork(workRequest.id, taskId)
-        
+
         return taskId
     }
-    
+
     /**
      * Get the result of a task
      */
     fun getTaskResult(taskId: String): ProcessingState? {
         return _processingState.value[taskId]
     }
-    
+
     /**
      * Cancel a task
      */
     fun cancelTask(taskId: String) {
         Log.d(TAG, "Cancelling task: $taskId")
-        
+
         // Cancel work
         workManager.cancelUniqueWork("$WORK_SUMMARIZE_PREFIX$taskId")
         workManager.cancelUniqueWork("$WORK_TRANSCRIBE_PREFIX$taskId")
         workManager.cancelUniqueWork("$WORK_EXTRACT_TEXT_PREFIX$taskId")
         workManager.cancelUniqueWork("$WORK_GENERATE_TAGS_PREFIX$taskId")
         workManager.cancelUniqueWork("$WORK_GENERATE_TITLE_PREFIX$taskId")
-        
+
         // Update processing state
         updateProcessingState(taskId, ProcessingState.CANCELLED)
     }
-    
+
     /**
      * Create network constraints for work requests
      */
@@ -299,13 +302,13 @@ class AiProcessingService @Inject constructor(
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
     }
-    
+
     /**
      * Observe work and update processing state
      */
     private fun observeWork(workId: UUID, taskId: String) {
         val workInfoLiveData: LiveData<WorkInfo> = workManager.getWorkInfoByIdLiveData(workId)
-        
+
         workInfoLiveData.observeForever { workInfo ->
             when (workInfo.state) {
                 WorkInfo.State.SUCCEEDED -> {
@@ -325,7 +328,7 @@ class AiProcessingService @Inject constructor(
             }
         }
     }
-    
+
     /**
      * Update processing state
      */

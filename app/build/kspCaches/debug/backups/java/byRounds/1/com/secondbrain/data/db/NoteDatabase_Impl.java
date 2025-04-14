@@ -33,13 +33,13 @@ public final class NoteDatabase_Impl extends NoteDatabase {
   @Override
   @NonNull
   protected SupportSQLiteOpenHelper createOpenHelper(@NonNull final DatabaseConfiguration config) {
-    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(2) {
+    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(3) {
       @Override
       public void createAllTables(@NonNull final SupportSQLiteDatabase db) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `notes` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `filePath` TEXT, `sourceUrl` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `tags` TEXT NOT NULL, PRIMARY KEY(`id`))");
-        db.execSQL("CREATE TABLE IF NOT EXISTS `cards` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `summary` TEXT NOT NULL, `type` TEXT NOT NULL, `source` TEXT NOT NULL, `tags` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `language` TEXT NOT NULL, `aiModel` TEXT NOT NULL, `summaryType` TEXT NOT NULL, `thumbnailUrl` TEXT, `pageCount` INTEGER, PRIMARY KEY(`id`))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `cards` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `content` TEXT NOT NULL, `summary` TEXT NOT NULL, `type` TEXT NOT NULL, `source` TEXT NOT NULL, `tags` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `language` TEXT NOT NULL, `aiModel` TEXT NOT NULL, `summaryType` TEXT NOT NULL, `thumbnailUrl` TEXT, `pageCount` INTEGER, `videoId` TEXT, `channelTitle` TEXT, `videoDuration` TEXT, `viewCount` TEXT, `hasTranscript` INTEGER NOT NULL, `metadata` TEXT, PRIMARY KEY(`id`))");
         db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)");
-        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a7f818d00799f5effcf1521062822fec')");
+        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6803f7f6b80fd12a4a8a1d9004954c78')");
       }
 
       @Override
@@ -107,7 +107,7 @@ public final class NoteDatabase_Impl extends NoteDatabase {
                   + " Expected:\n" + _infoNotes + "\n"
                   + " Found:\n" + _existingNotes);
         }
-        final HashMap<String, TableInfo.Column> _columnsCards = new HashMap<String, TableInfo.Column>(14);
+        final HashMap<String, TableInfo.Column> _columnsCards = new HashMap<String, TableInfo.Column>(20);
         _columnsCards.put("id", new TableInfo.Column("id", "TEXT", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsCards.put("title", new TableInfo.Column("title", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsCards.put("content", new TableInfo.Column("content", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
@@ -122,6 +122,12 @@ public final class NoteDatabase_Impl extends NoteDatabase {
         _columnsCards.put("summaryType", new TableInfo.Column("summaryType", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsCards.put("thumbnailUrl", new TableInfo.Column("thumbnailUrl", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsCards.put("pageCount", new TableInfo.Column("pageCount", "INTEGER", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("videoId", new TableInfo.Column("videoId", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("channelTitle", new TableInfo.Column("channelTitle", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("videoDuration", new TableInfo.Column("videoDuration", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("viewCount", new TableInfo.Column("viewCount", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("hasTranscript", new TableInfo.Column("hasTranscript", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsCards.put("metadata", new TableInfo.Column("metadata", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         final HashSet<TableInfo.ForeignKey> _foreignKeysCards = new HashSet<TableInfo.ForeignKey>(0);
         final HashSet<TableInfo.Index> _indicesCards = new HashSet<TableInfo.Index>(0);
         final TableInfo _infoCards = new TableInfo("cards", _columnsCards, _foreignKeysCards, _indicesCards);
@@ -133,7 +139,7 @@ public final class NoteDatabase_Impl extends NoteDatabase {
         }
         return new RoomOpenHelper.ValidationResult(true, null);
       }
-    }, "a7f818d00799f5effcf1521062822fec", "0e6d6cc641467f913249d321ca938a65");
+    }, "6803f7f6b80fd12a4a8a1d9004954c78", "5f05f8e43c55dbe9f3b27991ecd41015");
     final SupportSQLiteOpenHelper.Configuration _sqliteConfig = SupportSQLiteOpenHelper.Configuration.builder(config.context).name(config.name).callback(_openCallback).build();
     final SupportSQLiteOpenHelper _helper = config.sqliteOpenHelperFactory.create(_sqliteConfig);
     return _helper;

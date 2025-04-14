@@ -10,7 +10,9 @@ import com.secondbrain.data.model.Card
 import com.secondbrain.data.model.CardType
 import com.secondbrain.data.model.WebSearchResult
 import com.secondbrain.data.repository.CardRepository
+import com.secondbrain.data.repository.SettingsRepository
 import com.secondbrain.data.service.AiService
+import com.secondbrain.data.service.ThumbnailService
 import com.secondbrain.data.service.WebSearchService
 import com.secondbrain.data.service.ai.AiServiceManager
 import com.secondbrain.util.ContentExtractor
@@ -18,7 +20,9 @@ import com.secondbrain.util.PdfContent
 import com.secondbrain.util.PdfProcessor
 import com.secondbrain.util.UrlContent
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.util.UUID
 import javax.inject.Inject
 import android.content.Context
@@ -30,7 +34,9 @@ class CreateCardViewModel @Inject constructor(
     private val aiService: AiService,
     private val aiServiceManager: AiServiceManager,
     private val contentExtractor: ContentExtractor,
-    private val webSearchService: WebSearchService
+    private val webSearchService: WebSearchService,
+    private val settingsRepository: SettingsRepository,
+    private val thumbnailService: ThumbnailService
 ) : ViewModel() {
 
     // Common states
@@ -54,6 +60,24 @@ class CreateCardViewModel @Inject constructor(
     var aiModelOptionsExpanded by mutableStateOf(false)
     var aiModels = mutableStateListOf<String>()
     var isLoadingModels by mutableStateOf(false)
+
+    // Get a display-friendly name for the selected AI model
+    val selectedModelDisplayName: String
+        get() {
+            // Extract provider name if it's in the format "Provider - Model"
+            if (selectedAiModel.contains(" - ")) {
+                return selectedAiModel
+            } else {
+                // Try to determine provider from the model name
+                return when {
+                    selectedAiModel.contains("gpt", ignoreCase = true) -> "OpenAI - $selectedAiModel"
+                    selectedAiModel.contains("claude", ignoreCase = true) -> "Claude - $selectedAiModel"
+                    selectedAiModel.contains("gemini", ignoreCase = true) -> "Gemini - $selectedAiModel"
+                    selectedAiModel.contains("deepseek", ignoreCase = true) -> "DeepSeek - $selectedAiModel"
+                    else -> "OpenRouter - $selectedAiModel"
+                }
+            }
+        }
 
     // Summary toggle states for each tab (default is ON)
     var urlSummaryEnabled by mutableStateOf(true)
@@ -86,6 +110,315 @@ class CreateCardViewModel @Inject constructor(
     var noteContent by mutableStateOf("")
     val noteTags = mutableStateListOf<String>()
 
+    // Text selection state for rich text editing
+    var noteSelectionStart by mutableStateOf(0)
+    var noteSelectionEnd by mutableStateOf(0)
+
+    /**
+     * Apply bold formatting to selected text or insert at cursor position
+     */
+    fun applyBoldFormatting() {
+        if (noteSelectionStart == noteSelectionEnd) {
+            // No selection, insert placeholder
+            val newText = noteContent.substring(0, noteSelectionStart) + "**bold text**" +
+                          noteContent.substring(noteSelectionEnd)
+            noteContent = newText
+            // Position cursor inside the bold tags
+            noteSelectionStart += 2
+            noteSelectionEnd = noteSelectionStart + 8 // "bold text".length
+        } else {
+            // Apply to selection
+            val selectedText = noteContent.substring(noteSelectionStart, noteSelectionEnd)
+            val newText = noteContent.substring(0, noteSelectionStart) + "**$selectedText**" +
+                          noteContent.substring(noteSelectionEnd)
+            noteContent = newText
+            // Adjust selection to include the formatting marks
+            noteSelectionEnd += 4 // Add ** at start and end
+        }
+    }
+
+    /**
+     * Apply italic formatting to selected text or insert at cursor position
+     */
+    fun applyItalicFormatting() {
+        if (noteSelectionStart == noteSelectionEnd) {
+            // No selection, insert placeholder
+            val newText = noteContent.substring(0, noteSelectionStart) + "*italic text*" +
+                          noteContent.substring(noteSelectionEnd)
+            noteContent = newText
+            // Position cursor inside the italic tags
+            noteSelectionStart += 1
+            noteSelectionEnd = noteSelectionStart + 11 // "italic text".length
+        } else {
+            // Apply to selection
+            val selectedText = noteContent.substring(noteSelectionStart, noteSelectionEnd)
+            val newText = noteContent.substring(0, noteSelectionStart) + "*$selectedText*" +
+                          noteContent.substring(noteSelectionEnd)
+            noteContent = newText
+            // Adjust selection to include the formatting marks
+            noteSelectionEnd += 2 // Add * at start and end
+        }
+    }
+
+    /**
+     * Apply underline formatting to selected text or insert at cursor position
+     */
+    fun applyUnderlineFormatting() {
+        if (noteSelectionStart == noteSelectionEnd) {
+            // No selection, insert placeholder
+            val newText = noteContent.substring(0, noteSelectionStart) + "__underlined text__" +
+                          noteContent.substring(noteSelectionEnd)
+            noteContent = newText
+            // Position cursor inside the underline tags
+            noteSelectionStart += 2
+            noteSelectionEnd = noteSelectionStart + 15 // "underlined text".length
+        } else {
+            // Apply to selection
+            val selectedText = noteContent.substring(noteSelectionStart, noteSelectionEnd)
+            val newText = noteContent.substring(0, noteSelectionStart) + "__" + selectedText + "__" +
+                          noteContent.substring(noteSelectionEnd)
+            noteContent = newText
+            // Adjust selection to include the formatting marks
+            noteSelectionEnd += 4 // Add __ at start and end
+        }
+    }
+
+    /**
+     * Insert a bullet point at the current line or convert selected lines to bullet points
+     */
+    fun applyBulletPoint() {
+        if (noteSelectionStart == noteSelectionEnd) {
+            // No selection, insert a bullet point at the current position
+            // First check if we're at the start of a line
+            val isAtLineStart = noteSelectionStart == 0 ||
+                               noteContent.substring(0, noteSelectionStart).endsWith("\n")
+
+            val newText = if (isAtLineStart) {
+                noteContent.substring(0, noteSelectionStart) + "- " +
+                noteContent.substring(noteSelectionEnd)
+            } else {
+                noteContent.substring(0, noteSelectionStart) + "\n- " +
+                noteContent.substring(noteSelectionEnd)
+            }
+
+            noteContent = newText
+            // Position cursor after the bullet point
+            noteSelectionStart += if (isAtLineStart) 2 else 3
+            noteSelectionEnd = noteSelectionStart
+        } else {
+            // Apply to all selected lines
+            val selectedText = noteContent.substring(noteSelectionStart, noteSelectionEnd)
+            val lines = selectedText.split("\n")
+            val bulletedLines = lines.joinToString("\n") { "- $it" }
+
+            val newText = noteContent.substring(0, noteSelectionStart) + bulletedLines +
+                          noteContent.substring(noteSelectionEnd)
+            noteContent = newText
+            // Adjust selection to include the bullet points
+            noteSelectionEnd = noteSelectionStart + bulletedLines.length
+        }
+    }
+
+    /**
+     * Insert a numbered list item or convert selected lines to a numbered list
+     */
+    fun applyNumberedList() {
+        if (noteSelectionStart == noteSelectionEnd) {
+            // No selection, insert a numbered list item at the current position
+            // First check if we're at the start of a line
+            val isAtLineStart = noteSelectionStart == 0 ||
+                               noteContent.substring(0, noteSelectionStart).endsWith("\n")
+
+            val newText = if (isAtLineStart) {
+                noteContent.substring(0, noteSelectionStart) + "1. " +
+                noteContent.substring(noteSelectionEnd)
+            } else {
+                noteContent.substring(0, noteSelectionStart) + "\n1. " +
+                noteContent.substring(noteSelectionEnd)
+            }
+
+            noteContent = newText
+            // Position cursor after the list marker
+            noteSelectionStart += if (isAtLineStart) 3 else 4
+            noteSelectionEnd = noteSelectionStart
+        } else {
+            // Apply to all selected lines
+            val selectedText = noteContent.substring(noteSelectionStart, noteSelectionEnd)
+            val lines = selectedText.split("\n")
+            val numberedLines = lines.mapIndexed { index, line -> "${index + 1}. $line" }.joinToString("\n")
+
+            val newText = noteContent.substring(0, noteSelectionStart) + numberedLines +
+                          noteContent.substring(noteSelectionEnd)
+            noteContent = newText
+            // Adjust selection to include the numbered list
+            noteSelectionEnd = noteSelectionStart + numberedLines.length
+        }
+    }
+
+    /**
+     * Insert a checkbox or convert selected lines to checkboxes
+     */
+    fun applyCheckbox() {
+        if (noteSelectionStart == noteSelectionEnd) {
+            // No selection, insert a checkbox at the current position
+            // First check if we're at the start of a line
+            val isAtLineStart = noteSelectionStart == 0 ||
+                               noteContent.substring(0, noteSelectionStart).endsWith("\n")
+
+            val newText = if (isAtLineStart) {
+                noteContent.substring(0, noteSelectionStart) + "- [ ] " +
+                noteContent.substring(noteSelectionEnd)
+            } else {
+                noteContent.substring(0, noteSelectionStart) + "\n- [ ] " +
+                noteContent.substring(noteSelectionEnd)
+            }
+
+            noteContent = newText
+            // Position cursor after the checkbox
+            noteSelectionStart += if (isAtLineStart) 6 else 7
+            noteSelectionEnd = noteSelectionStart
+        } else {
+            // Apply to all selected lines
+            val selectedText = noteContent.substring(noteSelectionStart, noteSelectionEnd)
+            val lines = selectedText.split("\n")
+            val checkboxLines = lines.joinToString("\n") { "- [ ] $it" }
+
+            val newText = noteContent.substring(0, noteSelectionStart) + checkboxLines +
+                          noteContent.substring(noteSelectionEnd)
+            noteContent = newText
+            // Adjust selection to include the checkboxes
+            noteSelectionEnd = noteSelectionStart + checkboxLines.length
+        }
+    }
+
+    /**
+     * Apply code formatting to selected text or insert at cursor position
+     */
+    fun applyCodeFormatting() {
+        if (noteSelectionStart == noteSelectionEnd) {
+            // No selection, insert placeholder
+            val newText = noteContent.substring(0, noteSelectionStart) + "`code`" +
+                          noteContent.substring(noteSelectionEnd)
+            noteContent = newText
+            // Position cursor inside the code tags
+            noteSelectionStart += 1
+            noteSelectionEnd = noteSelectionStart + 4 // "code".length
+        } else {
+            // Apply to selection
+            val selectedText = noteContent.substring(noteSelectionStart, noteSelectionEnd)
+            // Check if it's a single line or multiple lines
+            val isMultiline = selectedText.contains("\n")
+
+            val newText = if (isMultiline) {
+                // Use code block for multiple lines
+                noteContent.substring(0, noteSelectionStart) + "```\n$selectedText\n```" +
+                noteContent.substring(noteSelectionEnd)
+            } else {
+                // Use inline code for single line
+                noteContent.substring(0, noteSelectionStart) + "`$selectedText`" +
+                noteContent.substring(noteSelectionEnd)
+            }
+
+            noteContent = newText
+            // Adjust selection to include the code formatting
+            noteSelectionEnd = if (isMultiline) {
+                noteSelectionStart + selectedText.length + 8 // Add ```\n at start and \n``` at end
+            } else {
+                noteSelectionStart + selectedText.length + 2 // Add ` at start and end
+            }
+        }
+    }
+
+    /**
+     * Insert a link at the cursor position or convert selected text to a link
+     */
+    fun applyLinkFormatting() {
+        if (noteSelectionStart == noteSelectionEnd) {
+            // No selection, insert a link template
+            val newText = noteContent.substring(0, noteSelectionStart) + "[link text](https://example.com)" +
+                          noteContent.substring(noteSelectionEnd)
+            noteContent = newText
+            // Position cursor at the link text
+            noteSelectionStart += 1
+            noteSelectionEnd = noteSelectionStart + 9 // "link text".length
+        } else {
+            // Convert selected text to link text
+            val selectedText = noteContent.substring(noteSelectionStart, noteSelectionEnd)
+            val newText = noteContent.substring(0, noteSelectionStart) + "[$selectedText](https://example.com)" +
+                          noteContent.substring(noteSelectionEnd)
+            noteContent = newText
+            // Position cursor at the URL
+            noteSelectionStart = noteSelectionEnd + 3 // After ](
+            noteSelectionEnd = noteSelectionStart + 18 // "https://example.com".length
+        }
+    }
+
+    /**
+     * Insert an image reference at the cursor position
+     */
+    fun applyImageFormatting() {
+        val imageTemplate = "![image description](https://example.com/image.jpg)"
+        val newText = noteContent.substring(0, noteSelectionStart) + imageTemplate +
+                      noteContent.substring(noteSelectionEnd)
+        noteContent = newText
+        // Position cursor at the image description
+        noteSelectionStart += 2
+        noteSelectionEnd = noteSelectionStart + 17 // "image description".length
+    }
+
+    /**
+     * Insert a heading at the current line or convert selected text to a heading
+     */
+    fun applyHeadingFormatting(level: Int = 2) { // Default to H2
+        val prefix = "#".repeat(level) + " "
+
+        if (noteSelectionStart == noteSelectionEnd) {
+            // No selection, insert a heading at the current position
+            // First check if we're at the start of a line
+            val isAtLineStart = noteSelectionStart == 0 ||
+                               noteContent.substring(0, noteSelectionStart).endsWith("\n")
+
+            val newText = if (isAtLineStart) {
+                noteContent.substring(0, noteSelectionStart) + prefix + "Heading" +
+                noteContent.substring(noteSelectionEnd)
+            } else {
+                noteContent.substring(0, noteSelectionStart) + "\n" + prefix + "Heading" +
+                noteContent.substring(noteSelectionEnd)
+            }
+
+            noteContent = newText
+            // Position cursor after the heading prefix
+            noteSelectionStart += if (isAtLineStart) prefix.length else prefix.length + 1
+            noteSelectionEnd = noteSelectionStart + 7 // "Heading".length
+        } else {
+            // Apply to selected text
+            val selectedText = noteContent.substring(noteSelectionStart, noteSelectionEnd)
+            // Check if the selection spans multiple lines
+            val lines = selectedText.split("\n")
+
+            if (lines.size > 1) {
+                // Apply heading to first line only
+                val firstLine = lines.first()
+                val restOfLines = lines.drop(1).joinToString("\n")
+
+                val newText = noteContent.substring(0, noteSelectionStart) +
+                              prefix + firstLine + "\n" + restOfLines +
+                              noteContent.substring(noteSelectionEnd)
+                noteContent = newText
+                // Adjust selection
+                noteSelectionEnd = noteSelectionStart + prefix.length + selectedText.length
+            } else {
+                // Apply to single line
+                val newText = noteContent.substring(0, noteSelectionStart) +
+                              prefix + selectedText +
+                              noteContent.substring(noteSelectionEnd)
+                noteContent = newText
+                // Adjust selection
+                noteSelectionEnd = noteSelectionStart + prefix.length + selectedText.length
+            }
+        }
+    }
+
     // Audio tab states
     var audioTitle by mutableStateOf("")
     var selectedTranscriptionLanguage by mutableStateOf("English")
@@ -102,26 +435,84 @@ class CreateCardViewModel @Inject constructor(
 
     init {
         loadAiModels()
+        loadSelectedModelFromSettings()
     }
+
+    /**
+     * Navigate to AI model selection screen
+     * This will be implemented by the Activity/Fragment
+     */
+    var onNavigateToModelSelection: () -> Unit = {}
 
     private fun loadAiModels() {
         viewModelScope.launch {
             isLoadingModels = true
             try {
-                // This is a placeholder - in the real app, we would call aiServiceManager.getAvailableModels()
-                val models = listOf("gpt-3.5-turbo", "gpt-4", "claude-3-opus", "claude-3-sonnet")
-                aiModels.clear()
-                aiModels.addAll(models)
-                if (aiModels.isNotEmpty() && !aiModels.contains(selectedAiModel)) {
-                    selectedAiModel = aiModels.first()
+                // Get available models from the AI service manager
+                val providers = aiServiceManager.getAvailableProviders()
+                val allModels = mutableListOf<String>()
+
+                // Collect models from all providers
+                for (provider in providers) {
+                    if (provider.isConfigured()) {
+                        // Format model names with provider name
+                        val providerModels = provider.availableModels.map { model ->
+                            // Make sure we're not duplicating the provider name in the model name
+                            val modelName = if (model.name.contains(provider.name, ignoreCase = true)) {
+                                model.name
+                            } else {
+                                model.name
+                            }
+                            "${provider.name} - ${modelName}"
+                        }
+                        allModels.addAll(providerModels)
+                    }
                 }
+
+                // If no models are available, add some defaults
+                if (allModels.isEmpty()) {
+                    allModels.addAll(listOf(
+                        "OpenAI - gpt-3.5-turbo",
+                        "OpenAI - gpt-4",
+                        "Claude - claude-3-opus",
+                        "Claude - claude-3-sonnet",
+                        "OpenRouter - mistral-7b"
+                    ))
+                }
+
+                aiModels.clear()
+                aiModels.addAll(allModels)
+
+                // Log the available models
+                android.util.Log.d("CreateCardViewModel", "Available models: ${aiModels.joinToString(", ")}")
             } catch (e: Exception) {
                 android.util.Log.e("CreateCardViewModel", "Error loading AI models", e)
                 // Add some default models if loading fails
                 aiModels.clear()
-                aiModels.addAll(listOf("gpt-3.5-turbo", "gpt-4"))
+                aiModels.addAll(listOf(
+                    "OpenAI - gpt-3.5-turbo",
+                    "OpenAI - gpt-4"
+                ))
             } finally {
                 isLoadingModels = false
+            }
+        }
+    }
+
+    /**
+     * Load the selected model from settings
+     */
+    private fun loadSelectedModelFromSettings() {
+        viewModelScope.launch {
+            try {
+                // Get the default model from settings
+                val defaultModel = settingsRepository.defaultAiModelFlow.first()
+                if (defaultModel.isNotBlank()) {
+                    selectedAiModel = defaultModel
+                    android.util.Log.d("CreateCardViewModel", "Loaded selected model from settings: $defaultModel")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("CreateCardViewModel", "Error loading selected model from settings", e)
             }
         }
     }
@@ -368,7 +759,13 @@ class CreateCardViewModel @Inject constructor(
                                     "The AI server is currently overloaded. Please try again in a few moments."
                                 }
                                 is com.secondbrain.util.ApiPaymentRequiredException -> {
-                                    "OpenRouter requires more credits: ${error.message?.substringAfter("Payment required: ")}"
+                                    val errorMsg = error.message?.substringAfter("Payment required: ") ?: ""
+                                    if (errorMsg.contains("max_tokens", ignoreCase = true)) {
+                                        // This is a token limit issue, provide a more helpful message
+                                        "OpenRouter token limit exceeded. Try using a different model or reducing the content length."
+                                    } else {
+                                        "OpenRouter requires more credits: $errorMsg"
+                                    }
                                 }
                                 is com.secondbrain.util.ApiRateLimitException -> {
                                     "Rate limit exceeded. Please try again later."
@@ -437,18 +834,43 @@ class CreateCardViewModel @Inject constructor(
 
     private fun createUrlCard(summary: String, tags: List<String> = emptyList()): Card {
         val urlContent = extractedUrlContent
+        val title = urlContent?.title ?: urlInput
 
-        // Log thumbnail URL for debugging
-        android.util.Log.d("CreateCardViewModel", "Creating URL card with thumbnail: ${urlContent?.thumbnailUrl}")
+        // Get thumbnail URL from content or generate one
+        var thumbnailUrl = urlContent?.thumbnailUrl
 
-        // Make sure the thumbnail URL is valid
-        val validatedThumbnailUrl = urlContent?.thumbnailUrl?.let {
-            if (it.startsWith("http")) it else null
+        // Generate a card ID that will be used for both initial creation and updates
+        val cardId = UUID.randomUUID().toString()
+
+        // If no thumbnail URL or it's invalid, try to get one using the ThumbnailService
+        if (thumbnailUrl.isNullOrEmpty() || !thumbnailUrl.startsWith("http")) {
+            runBlocking {
+                try {
+                    // Get a thumbnail for the URL
+                    val newThumbnailUrl = thumbnailService.getThumbnailForUrl(
+                        url = urlInput,
+                        type = CardType.URL,
+                        title = title
+                    )
+
+                    if (!newThumbnailUrl.isNullOrEmpty()) {
+                        android.util.Log.d("CreateCardViewModel", "Generated new thumbnail URL: $newThumbnailUrl for card: $cardId")
+                        thumbnailUrl = newThumbnailUrl
+                    } else {
+                        android.util.Log.d("CreateCardViewModel", "Failed to generate thumbnail for card: $cardId")
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("CreateCardViewModel", "Error getting thumbnail for URL: $urlInput", e)
+                }
+            }
         }
 
+        // Log the thumbnail URL for debugging
+        android.util.Log.d("CreateCardViewModel", "Creating URL card with ID: $cardId and thumbnail: $thumbnailUrl")
+
         return Card(
-            id = UUID.randomUUID().toString(),
-            title = urlContent?.title ?: urlInput,
+            id = cardId,  // Use the same ID we generated earlier
+            title = title,
             summary = summary,
             content = urlContent?.content ?: "",
             source = urlInput,
@@ -459,18 +881,53 @@ class CreateCardViewModel @Inject constructor(
             language = selectedLanguage,
             aiModel = selectedAiModel,
             summaryType = selectedSummaryType,
-            thumbnailUrl = validatedThumbnailUrl
+            thumbnailUrl = thumbnailUrl
         )
     }
 
     private fun createSearchCard(summary: String, tags: List<String> = emptyList()): Card {
         val result = selectedSearchResult
+        val title = result?.title ?: "Search: $searchQuery"
+        val source = result?.url ?: "Search query: $searchQuery"
+
+        // Get thumbnail URL from result or generate one
+        var thumbnailUrl = result?.thumbnailUrl
+
+        // Generate a card ID that will be used for both initial creation and updates
+        val cardId = UUID.randomUUID().toString()
+
+        // If no thumbnail URL or it's invalid, try to get one using the ThumbnailService
+        if (thumbnailUrl.isNullOrEmpty() || !thumbnailUrl.startsWith("http")) {
+            runBlocking {
+                try {
+                    // Get a thumbnail for the URL
+                    val newThumbnailUrl = thumbnailService.getThumbnailForUrl(
+                        url = source,
+                        type = CardType.SEARCH,
+                        title = title
+                    )
+
+                    if (!newThumbnailUrl.isNullOrEmpty()) {
+                        android.util.Log.d("CreateCardViewModel", "Generated new thumbnail URL: $newThumbnailUrl for search card: $cardId")
+                        thumbnailUrl = newThumbnailUrl
+                    } else {
+                        android.util.Log.d("CreateCardViewModel", "Failed to generate thumbnail for search card: $cardId")
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("CreateCardViewModel", "Error getting thumbnail for search result: $source", e)
+                }
+            }
+        }
+
+        // Log the thumbnail URL for debugging
+        android.util.Log.d("CreateCardViewModel", "Creating search card with ID: $cardId and thumbnail: $thumbnailUrl")
+
         return Card(
-            id = UUID.randomUUID().toString(),
-            title = result?.title ?: "Search: $searchQuery",
+            id = cardId,  // Use the same ID we generated earlier
+            title = title,
             summary = summary,
             content = result?.snippet ?: "Search results for: $searchQuery",
-            source = result?.url ?: "Search query: $searchQuery",
+            source = source,
             type = CardType.SEARCH,
             tags = tags,
             createdAt = System.currentTimeMillis(),
@@ -478,18 +935,53 @@ class CreateCardViewModel @Inject constructor(
             language = selectedLanguage,
             aiModel = selectedAiModel,
             summaryType = selectedSummaryType,
-            thumbnailUrl = result?.thumbnailUrl
+            thumbnailUrl = thumbnailUrl
         )
     }
 
     private fun createPdfCard(summary: String, tags: List<String> = emptyList()): Card {
         val pdfContent = extractedPdfContent
+        val title = pdfContent?.title ?: "PDF Document"
+        val source = "PDF: ${pdfContent?.title}"
+
+        // Get thumbnail URL from PDF content or generate one
+        var thumbnailUrl = pdfContent?.thumbnailUrl
+
+        // Generate a card ID that will be used for both initial creation and updates
+        val cardId = UUID.randomUUID().toString()
+
+        // If no thumbnail URL or it's invalid, try to get one using the ThumbnailService
+        if (thumbnailUrl.isNullOrEmpty()) {
+            runBlocking {
+                try {
+                    // Get a thumbnail for the PDF
+                    val newThumbnailUrl = thumbnailService.getThumbnailForUrl(
+                        url = pdfContent?.uri ?: "",
+                        type = CardType.PDF,
+                        title = title
+                    )
+
+                    if (!newThumbnailUrl.isNullOrEmpty()) {
+                        android.util.Log.d("CreateCardViewModel", "Generated new thumbnail URL: $newThumbnailUrl for PDF card: $cardId")
+                        thumbnailUrl = newThumbnailUrl
+                    } else {
+                        android.util.Log.d("CreateCardViewModel", "Failed to generate thumbnail for PDF card: $cardId")
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("CreateCardViewModel", "Error getting thumbnail for PDF: ${pdfContent?.uri}", e)
+                }
+            }
+        }
+
+        // Log the thumbnail URL for debugging
+        android.util.Log.d("CreateCardViewModel", "Creating PDF card with ID: $cardId and thumbnail: $thumbnailUrl")
+
         return Card(
-            id = UUID.randomUUID().toString(),
-            title = pdfContent?.title ?: "PDF Document",
+            id = cardId,  // Use the same ID we generated earlier
+            title = title,
             summary = summary,
             content = pdfContent?.content ?: "",
-            source = "PDF: ${pdfContent?.title}",
+            source = source,
             type = CardType.PDF,
             tags = tags,
             createdAt = System.currentTimeMillis(),
@@ -497,14 +989,47 @@ class CreateCardViewModel @Inject constructor(
             language = selectedLanguage,
             aiModel = selectedAiModel,
             summaryType = selectedSummaryType,
+            thumbnailUrl = thumbnailUrl,
             pageCount = pdfContent?.pageCount
         )
     }
 
     private fun createNoteCard(summary: String, tags: List<String> = emptyList()): Card {
+        val title = if (noteTitle.isNotBlank()) noteTitle else "Note: ${noteContent.take(30)}..."
+
+        // Generate a card ID that will be used for both initial creation and updates
+        val cardId = UUID.randomUUID().toString()
+
+        // Generate a text-based thumbnail for the note
+        var thumbnailUrl: String? = null
+
+        // Generate the thumbnail synchronously before returning the card
+        runBlocking {
+            try {
+                // Generate a text-based thumbnail
+                val generatedThumbnail = thumbnailService.getThumbnailForUrl(
+                    url = "note://$cardId",  // Use the card ID in the URL to ensure uniqueness
+                    type = CardType.NOTE,
+                    title = title
+                )
+
+                if (!generatedThumbnail.isNullOrEmpty()) {
+                    android.util.Log.d("CreateCardViewModel", "Generated new thumbnail URL: $generatedThumbnail for note card: $cardId")
+                    thumbnailUrl = generatedThumbnail
+                } else {
+                    android.util.Log.d("CreateCardViewModel", "Failed to generate thumbnail for note card: $cardId")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("CreateCardViewModel", "Error generating thumbnail for note", e)
+            }
+        }
+
+        // Log the thumbnail URL for debugging
+        android.util.Log.d("CreateCardViewModel", "Creating note card with ID: $cardId and thumbnail: $thumbnailUrl")
+
         return Card(
-            id = UUID.randomUUID().toString(),
-            title = if (noteTitle.isNotBlank()) noteTitle else "Note: ${noteContent.take(30)}...",
+            id = cardId,  // Use the same ID we generated earlier
+            title = title,
             summary = summary,
             content = noteContent,
             source = "Note",
@@ -514,14 +1039,46 @@ class CreateCardViewModel @Inject constructor(
             updatedAt = System.currentTimeMillis(),
             language = selectedLanguage,
             aiModel = selectedAiModel,
-            summaryType = selectedSummaryType
+            summaryType = selectedSummaryType,
+            thumbnailUrl = thumbnailUrl
         )
     }
 
     private fun createAudioCard(summary: String, tags: List<String> = emptyList()): Card {
+        val title = if (audioTitle.isNotBlank()) audioTitle else "Audio Note"
+
+        // Generate a text-based thumbnail for the audio note
+        var thumbnailUrl: String? = null
+
+        // Generate a card ID that will be used for both initial creation and updates
+        val cardId = UUID.randomUUID().toString()
+
+        runBlocking {
+            try {
+                // Generate a text-based thumbnail
+                val generatedThumbnail = thumbnailService.getThumbnailForUrl(
+                    url = "audio://$cardId",  // Use the card ID in the URL to ensure uniqueness
+                    type = CardType.AUDIO,
+                    title = title
+                )
+
+                if (!generatedThumbnail.isNullOrEmpty()) {
+                    android.util.Log.d("CreateCardViewModel", "Generated new thumbnail URL: $generatedThumbnail for audio card: $cardId")
+                    thumbnailUrl = generatedThumbnail
+                } else {
+                    android.util.Log.d("CreateCardViewModel", "Failed to generate thumbnail for audio card: $cardId")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("CreateCardViewModel", "Error generating thumbnail for audio note", e)
+            }
+        }
+
+        // Log the thumbnail URL for debugging
+        android.util.Log.d("CreateCardViewModel", "Creating audio card with ID: $cardId and thumbnail: $thumbnailUrl")
+
         return Card(
-            id = UUID.randomUUID().toString(),
-            title = if (audioTitle.isNotBlank()) audioTitle else "Audio Note",
+            id = cardId,  // Use the same ID we generated earlier
+            title = title,
             summary = summary,
             content = "Audio transcription placeholder",
             source = "Audio recording",
@@ -531,7 +1088,8 @@ class CreateCardViewModel @Inject constructor(
             updatedAt = System.currentTimeMillis(),
             language = selectedLanguage,
             aiModel = selectedAiModel,
-            summaryType = selectedSummaryType
+            summaryType = selectedSummaryType,
+            thumbnailUrl = thumbnailUrl
         )
     }
 
